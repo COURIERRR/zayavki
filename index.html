@@ -1190,6 +1190,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       S.lastDl = false;
       goStep(STEP_SUMMARY);
       prepareXlsx();
+      logToServer(r);
     });
   }
 
@@ -1693,7 +1694,22 @@ textarea.inp { min-height: 84px; resize: vertical; }
       r.status = 'sent';
       r.sentAt = Date.now();
       saveNow();
+      logToServer(r);
     }
+  }
+
+  // Строка заявки в журнале-таблице у администратора (без фото). Если связи
+  // нет — не страшно: заявка всё равно сохранена в телефоне и в Excel.
+  function logToServer(r) {
+    var f = r.fields;
+    server('logRequest', {
+      number: r.number, createdAt: r.createdAt, status: r.status,
+      city: f.city, point: f.point, title: f.title, problem: f.problem,
+      brands: f.noBrand ? RU.noBrand : (f.brands || []).join(', '),
+      size: f.size, urgency: RU['u_' + (f.urgency || 'normal')],
+      name: r.author.name, phone: r.author.phone, photos: r.photos.length,
+      turns: r.chat.filter(function (m) { return m.role === 'user'; }).length
+    }).catch(function (e) { console.warn('logRequest', e); });
   }
 
   function share() {
