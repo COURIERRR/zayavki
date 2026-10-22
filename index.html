@@ -1509,6 +1509,72 @@ textarea.inp { min-height: 84px; resize: vertical; }
     return Math.max(20, lines * 15 + 5);
   }
 
+  // -------------------------------------------------------------------------
+  // Лист «Данные» — для выгрузки во внешнюю систему.
+  // Строка 1 — заголовки, строка 2 — значения. Порядок и названия колонок
+  // постоянные: на них настроен импорт. Любая правка списка — только вместе
+  // с повышением FORMAT_VERSION (колонка «Версия формата»), чтобы система
+  // могла отличить старые файлы от новых. Новые колонки — только в конец.
+  // -------------------------------------------------------------------------
+  var FORMAT_VERSION = 1;
+
+  // Дата как её видят в Казахстане: ExcelJS пишет даты по UTC, поэтому
+  // сдвигаем на смещение часового пояса телефона.
+  function localExcelDate(ms) {
+    return new Date(ms - new Date(ms).getTimezoneOffset() * 60000);
+  }
+  function isoLocal(ms) {
+    var d = new Date(ms);
+    var off = -d.getTimezoneOffset();
+    var sign = off >= 0 ? '+' : '-';
+    off = Math.abs(off);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' +
+      pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) +
+      sign + pad(Math.floor(off / 60)) + ':' + pad(off % 60);
+  }
+
+  var DATA_COLUMNS = [
+    ['Номер заявки', function (r) { return r.number; }],
+    ['Дата и время подачи', function (r) { return localExcelDate(r.createdAt); }, 'dd.mm.yyyy hh:mm'],
+    ['Дата ISO', function (r) { return isoLocal(r.createdAt); }],
+    ['Код маршрута', function (r) { return r.route; }],
+    ['Маршрут', function (r) { return routeName(r.route, RU); }],
+    ['Вид работы', function (r) { return r.fields.kind || BANNER; }],
+    ['Код срочности', function (r) { return r.fields.urgency || 'normal'; }],
+    ['Срочность', function (r) { return RU['u_' + (r.fields.urgency || 'normal')]; }],
+    ['Город', function (r) { return r.fields.city; }],
+    ['Точка / адрес', function (r) { return r.fields.point; }],
+    ['Название заявки', function (r) { return r.fields.title; }],
+    ['Что случилось', function (r) { return r.fields.problem; }],
+    ['Что нужно сделать', function (r) { return r.fields.todo; }],
+    ['Бренды', function (r) { return r.fields.noBrand ? RU.noBrand : (r.fields.brands || []).join(', '); }],
+    ['Размеры', function (r) { return r.fields.size; }],
+    ['Текст на макете', function (r) { return r.fields.layoutText; }],
+    ['Пожелания по оформлению', function (r) { return r.fields.designWishes; }],
+    ['Подал', function (r) { return r.author.name; }],
+    ['Телефон', function (r) { return r.author.phone; }, '@'],
+    ['Фото, шт.', function (r) { return r.photos.length; }],
+    ['Номер временный', function (r) { return r.numberLocal ? 'Да' : 'Нет'; }],
+    ['Версия формата', function () { return FORMAT_VERSION; }]
+  ];
+
+  function addDataSheet(wb, r) {
+    var ws = wb.addWorksheet('Данные');
+    ws.columns = DATA_COLUMNS.map(function (c) { return {header: c[0], width: Math.max(14, c[0].length + 4)}; });
+    ws.getRow(1).font = {bold: true};
+    var values = DATA_COLUMNS.map(function (c) {
+      var v = c[1](r);
+      return v === undefined || v === null ? '' : v;
+    });
+    var row = ws.addRow(values);
+    DATA_COLUMNS.forEach(function (c, i) {
+      if (c[2]) row.getCell(i + 1).numFmt = c[2];
+    });
+    row.alignment = {vertical: 'top', wrapText: true};
+    ws.views = [{state: 'frozen', ySplit: 1}];
+    return ws;
+  }
+
   function buildXlsx(r) {
     return loadExcelJS().then(function () {
       var wb = new ExcelJS.Workbook();
@@ -1579,6 +1645,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
           row += rows;
         }
       }
+
+      addDataSheet(wb, r);
 
       var wd = wb.addWorksheet('Диалог с помощником');
       wd.columns = [{header: 'Кто', key: 'who', width: 14}, {header: 'Текст', key: 'text', width: 90}];
@@ -2023,7 +2091,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
   }
 
   // Для проверки из консоли и тестов.
-  window.__zt = {S: S, buildXlsx: buildXlsx, xlsxName: xlsxName, handleAudio: handleAudio};
+  window.__zt = {S: S, buildXlsx: buildXlsx, xlsxName: xlsxName, handleAudio: handleAudio,
+    DATA_COLUMNS: DATA_COLUMNS, FORMAT_VERSION: FORMAT_VERSION};
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();

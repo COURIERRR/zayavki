@@ -4,7 +4,7 @@
 // номеру заявки и отправке. Страницу берём из сети, кеш — запасной вариант,
 // поэтому обновления с GitHub Pages приходят сразу.
 'use strict';
-var CACHE = 'zt-mvi09ouq';
+var CACHE = 'zt-mviytqd0';
 var SHELL = ['./', 'index.html', 'config.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/apple-touch-icon.png'];
 var EXCELJS = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
