@@ -332,6 +332,9 @@ textarea.inp { min-height: 84px; resize: vertical; }
   height: 58vh; min-height: 280px; border-radius: 12px; overflow: hidden;
   background: var(--surface-2); margin: 10px 0 4px; position: relative;
 }
+.map-search { display: flex; gap: 8px; margin-top: 10px; }
+.map-search .inp { flex: 1; min-width: 0; }
+.map-search .btn { flex: none; width: auto; padding: 0 16px; }
 .map-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); padding: 20px; text-align: center; }
 .pin { font-size: 34px; line-height: 40px; text-align: center; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .35)); }
 .pin.leaflet-marker-icon { background: none; border: 0; }
@@ -412,7 +415,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       addrFound: 'Адрес подставлен — проверьте его', coordsSet: 'Точка отмечена на карте',
       mapTitle: 'Отметьте точку на карте', mapHint: 'Нажмите на карту или перетащите метку на место точки.',
       mapHintY: 'Найдите место поиском (например, «рынок Тастак»), нажмите на карту или перетащите метку.',
-      mapSearch: 'Адрес или название',
+      mapSearch: 'Адрес или название', mapNotFound: 'Не нашёл такое место. Уточните запрос или поставьте метку вручную.',
       mapLoading: 'Загружаю карту…', mapFail: 'Карта не загрузилась. Проверьте интернет или введите адрес текстом.',
       pasteTitle: 'Адрес из 2GIS',
       pasteHint: 'В 2GIS откройте точку → «Поделиться» → «Скопировать» и вставьте сюда.',
@@ -499,7 +502,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       addrFound: 'Мекенжай қойылды — тексеріңіз', coordsSet: 'Нүкте картада белгіленді',
       mapTitle: 'Нүктені картадан белгілеңіз', mapHint: 'Картаны басыңыз немесе белгіні нүкте орнына жылжытыңыз.',
       mapHintY: 'Орынды іздеу арқылы табыңыз (мысалы, «Тастак базары»), картаны басыңыз немесе белгіні жылжытыңыз.',
-      mapSearch: 'Мекенжай немесе атауы',
+      mapSearch: 'Мекенжай немесе атауы', mapNotFound: 'Мұндай орын табылмады. Сұрауды нақтылаңыз немесе белгіні қолмен қойыңыз.',
       mapLoading: 'Карта жүктелуде…', mapFail: 'Карта жүктелмеді. Интернетті тексеріңіз немесе мекенжайды мәтінмен жазыңыз.',
       pasteTitle: '2GIS-тен мекенжай',
       pasteHint: '2GIS-те нүктені ашыңыз → «Бөлісу» → «Көшіру» және осында қойыңыз.',
@@ -2139,6 +2142,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       case 'gps': useGps(); break;
       case 'map-pick': openMapPicker(); break;
       case 'map-done': mapDone(); break;
+      case 'map-find': mapFind(); break;
       case 'paste-2gis': openPaste2gis(); break;
       case 'paste-2gis-go': paste2gisGo(); break;
       case 'ask-yes': modal(null); if (askResolve) askResolve(true); askResolve = null; break;
@@ -2207,6 +2211,10 @@ textarea.inp { min-height: 84px; resize: vertical; }
     if (e.key === 'Enter' && e.target.id === 'say') {
       e.preventDefault();
       sendText();
+    }
+    if (e.key === 'Enter' && e.target.id === 'map-q') {
+      e.preventDefault();
+      mapFind();
     }
   }
 
@@ -2279,20 +2287,11 @@ textarea.inp { min-height: 84px; resize: vertical; }
 
   // -------------------------------------------------------------------------
   // Адрес: GPS, карта (Яндекс Карты, если на сервере есть ключ, иначе
-  // Leaflet + OpenStreetMap), текст из 2GIS
+  // Leaflet + OpenStreetMap), текст из 2GIS. Адрес по точке и поиск места
+  // идут через OpenStreetMap: геокодер Яндекса — отдельный платный продукт,
+  // ключ JavaScript API даёт только саму карту.
   // -------------------------------------------------------------------------
   function reverseGeocode(lat, lon) {
-    if (!S.yandexKey) return osmGeocode(lat, lon);
-    return loadYmaps().then(function () {
-      return ymaps.geocode([lat, lon], {results: 1});
-    }).then(function (res) {
-      var g = res.geoObjects.get(0);
-      var line = g ? String(g.getAddressLine() || '').replace(/^Казахстан,\s*/, '') : '';
-      return line || osmGeocode(lat, lon);
-    }).catch(function () { return osmGeocode(lat, lon); });
-  }
-
-  function osmGeocode(lat, lon) {
     var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1' +
       '&accept-language=ru&lat=' + lat + '&lon=' + lon;
     return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
@@ -2380,7 +2379,9 @@ textarea.inp { min-height: 84px; resize: vertical; }
 
   function openMapPicker() {
     var f = S.cur.fields;
-    modal('<h2>' + esc(t('mapTitle')) + '</h2><p class="hint">' + esc(t(S.yandexKey ? 'mapHintY' : 'mapHint')) + '</p>' +
+    modal('<h2>' + esc(t('mapTitle')) + '</h2><p class="hint">' + esc(t('mapHintY')) + '</p>' +
+      '<div class="map-search"><input class="inp" id="map-q" type="search" enterkeyhint="search" placeholder="' +
+      esc(t('mapSearch')) + '"><button class="btn" data-act="map-find">' + esc(t('find')) + '</button></div>' +
       '<div id="pick-map" class="pick-map"><div class="map-loading">' + esc(t('mapLoading')) + '</div></div>' +
       '<button class="btn primary block" data-act="map-done">' + esc(t('done')) + '</button>' +
       '<button class="btn ghost block" data-act="modal-close">' + esc(t('cancel')) + '</button>');
@@ -2398,24 +2399,40 @@ textarea.inp { min-height: 84px; resize: vertical; }
     var el = document.getElementById('pick-map');
     if (!el) return;
     el.innerHTML = '';
-    var map = new ymaps.Map(el, {center: start, zoom: zoom, controls: ['zoomControl', 'geolocationControl']},
+    var map = new ymaps.Map(el, {center: start, zoom: zoom, controls: ['zoomControl', 'typeSelector']},
       {suppressMapOpenBlock: true});
-    // Поиск по адресам и названиям: «рынок Тастак», «Толе би 155».
-    var search = new ymaps.control.SearchControl({options: {
-      provider: 'yandex#map', noPlacemark: true, size: 'large', float: 'left', placeholderContent: t('mapSearch')
-    }});
-    map.controls.add(search);
     var pin = new ymaps.Placemark(start, {}, {draggable: true, preset: 'islands#redDotIcon'});
     map.geoObjects.add(pin);
     map.events.add('click', function (e) { pin.geometry.setCoordinates(e.get('coords')); });
-    search.events.add('resultselect', function (e) {
-      search.getResult(e.get('index')).then(function (r) {
-        var c = r.geometry.getCoordinates();
-        pin.geometry.setCoordinates(c);
-        map.setCenter(c, 17);
-      });
-    });
     mapState = {kind: 'y', map: map, pin: pin};
+  }
+
+  // Поиск места над картой: «рынок Тастак», «Толе би 155». Ищем в городе
+  // заявки, если он не назван в запросе.
+  function mapFind() {
+    var inp = document.getElementById('map-q');
+    var q = inp ? inp.value.trim() : '';
+    if (!q || !mapState) return;
+    var city = S.cur.fields.city || (S.profile || {}).city || '';
+    if (city && q.toLowerCase().indexOf(city.toLowerCase()) < 0) q += ', ' + city;
+    busy('…');
+    fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=kz&accept-language=ru&q=' +
+      encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (list) {
+      busy(null);
+      var hit = list && list[0];
+      if (!hit || !mapState) { toast(t('mapNotFound')); return; }
+      var c = [Number(hit.lat), Number(hit.lon)];
+      if (mapState.kind === 'y') {
+        mapState.pin.geometry.setCoordinates(c);
+        mapState.map.setCenter(c, 17);
+      } else {
+        mapState.pin.setLatLng(c);
+        mapState.map.setView(c, 17);
+      }
+    }).catch(function () {
+      busy(null);
+      toast(t('errNet'));
+    });
   }
 
   function osmMap(start, zoom) {
