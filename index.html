@@ -411,6 +411,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
       gpsFail: 'Не получилось определить место. Попробуйте ещё раз или выберите на карте.',
       addrFound: 'Адрес подставлен — проверьте его', coordsSet: 'Точка отмечена на карте',
       mapTitle: 'Отметьте точку на карте', mapHint: 'Нажмите на карту или перетащите метку на место точки.',
+      mapHintY: 'Найдите место поиском (например, «рынок Тастак»), нажмите на карту или перетащите метку.',
+      mapSearch: 'Адрес или название',
       mapLoading: 'Загружаю карту…', mapFail: 'Карта не загрузилась. Проверьте интернет или введите адрес текстом.',
       pasteTitle: 'Адрес из 2GIS',
       pasteHint: 'В 2GIS откройте точку → «Поделиться» → «Скопировать» и вставьте сюда.',
@@ -496,6 +498,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
       gpsFail: 'Орынды анықтау мүмкін болмады. Қайталап көріңіз немесе картадан таңдаңыз.',
       addrFound: 'Мекенжай қойылды — тексеріңіз', coordsSet: 'Нүкте картада белгіленді',
       mapTitle: 'Нүктені картадан белгілеңіз', mapHint: 'Картаны басыңыз немесе белгіні нүкте орнына жылжытыңыз.',
+      mapHintY: 'Орынды іздеу арқылы табыңыз (мысалы, «Тастак базары»), картаны басыңыз немесе белгіні жылжытыңыз.',
+      mapSearch: 'Мекенжай немесе атауы',
       mapLoading: 'Карта жүктелуде…', mapFail: 'Карта жүктелмеді. Интернетті тексеріңіз немесе мекенжайды мәтінмен жазыңыз.',
       pasteTitle: '2GIS-тен мекенжай',
       pasteHint: '2GIS-те нүктені ашыңыз → «Бөлісу» → «Көшіру» және осында қойыңыз.',
@@ -2127,7 +2131,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
         markSent(r);
         break;
       case 'modal-close':
-        if (mapState) { mapState.map.remove(); mapState = null; }
+        closeMap();
         modal(null);
         // Итог перерисовываем (мог смениться статус), форму — нет: сбился бы скролл.
         if (!S.cur || S.cur.step === STEP_SUMMARY) render();
@@ -2265,6 +2269,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       if (c.cities && c.cities.length) CFG.cities = c.cities;
       if (c.kinds && c.kinds.length) CFG.kinds = c.kinds;
       if (c.brands && c.brands.length) CFG.brands = c.brands;
+      S.yandexKey = c.yandexKey || '';
       if (S.aiReady !== !!c.aiReady) {
         S.aiReady = !!c.aiReady;
         if (S.screen === 'wizard' && S.cur && S.cur.step === 0) render();
@@ -2273,9 +2278,21 @@ textarea.inp { min-height: 84px; resize: vertical; }
   }
 
   // -------------------------------------------------------------------------
-  // Адрес: GPS, карта (Leaflet + OpenStreetMap), текст из 2GIS
+  // Адрес: GPS, карта (Яндекс Карты, если на сервере есть ключ, иначе
+  // Leaflet + OpenStreetMap), текст из 2GIS
   // -------------------------------------------------------------------------
   function reverseGeocode(lat, lon) {
+    if (!S.yandexKey) return osmGeocode(lat, lon);
+    return loadYmaps().then(function () {
+      return ymaps.geocode([lat, lon], {results: 1});
+    }).then(function (res) {
+      var g = res.geoObjects.get(0);
+      var line = g ? String(g.getAddressLine() || '').replace(/^Казахстан,\s*/, '') : '';
+      return line || osmGeocode(lat, lon);
+    }).catch(function () { return osmGeocode(lat, lon); });
+  }
+
+  function osmGeocode(lat, lon) {
     var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1' +
       '&accept-language=ru&lat=' + lat + '&lon=' + lon;
     return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
@@ -2337,19 +2354,76 @@ textarea.inp { min-height: 84px; resize: vertical; }
     return leafletLoading;
   }
 
+  var ymapsLoading = null;
+  function loadYmaps() {
+    if (window.ymaps && window.ymaps.Map) return Promise.resolve();
+    if (ymapsLoading) return ymapsLoading;
+    ymapsLoading = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://api-maps.yandex.ru/2.1/?lang=ru_RU&apikey=' + encodeURIComponent(S.yandexKey);
+      s.onload = function () {
+        if (!window.ymaps) { ymapsLoading = null; reject(new Error('ymaps')); return; }
+        ymaps.ready(function () { resolve(); }, function (e) { ymapsLoading = null; reject(e); });
+      };
+      s.onerror = function () { ymapsLoading = null; reject(new Error('ymaps')); };
+      document.head.appendChild(s);
+    });
+    return ymapsLoading;
+  }
+
   var mapState = null;
+  function closeMap() {
+    if (!mapState) return;
+    if (mapState.kind === 'y') mapState.map.destroy(); else mapState.map.remove();
+    mapState = null;
+  }
+
   function openMapPicker() {
     var f = S.cur.fields;
-    modal('<h2>' + esc(t('mapTitle')) + '</h2><p class="hint">' + esc(t('mapHint')) + '</p>' +
+    modal('<h2>' + esc(t('mapTitle')) + '</h2><p class="hint">' + esc(t(S.yandexKey ? 'mapHintY' : 'mapHint')) + '</p>' +
       '<div id="pick-map" class="pick-map"><div class="map-loading">' + esc(t('mapLoading')) + '</div></div>' +
       '<button class="btn primary block" data-act="map-done">' + esc(t('done')) + '</button>' +
       '<button class="btn ghost block" data-act="modal-close">' + esc(t('cancel')) + '</button>');
+    var start = f.lat ? [f.lat, f.lon] : (CITY_CENTERS[f.city] || CITY_CENTERS[(S.profile || {}).city] || CITY_CENTERS['Алматы']);
+    var zoom = f.lat ? 17 : 13;
+    if (S.yandexKey) {
+      loadYmaps().then(function () { yandexMap(start, zoom); })
+        .catch(function (e) { console.warn('ymaps', e); osmMap(start, zoom); });
+    } else {
+      osmMap(start, zoom);
+    }
+  }
+
+  function yandexMap(start, zoom) {
+    var el = document.getElementById('pick-map');
+    if (!el) return;
+    el.innerHTML = '';
+    var map = new ymaps.Map(el, {center: start, zoom: zoom, controls: ['zoomControl', 'geolocationControl']},
+      {suppressMapOpenBlock: true});
+    // Поиск по адресам и названиям: «рынок Тастак», «Толе би 155».
+    var search = new ymaps.control.SearchControl({options: {
+      provider: 'yandex#map', noPlacemark: true, size: 'large', float: 'left', placeholderContent: t('mapSearch')
+    }});
+    map.controls.add(search);
+    var pin = new ymaps.Placemark(start, {}, {draggable: true, preset: 'islands#redDotIcon'});
+    map.geoObjects.add(pin);
+    map.events.add('click', function (e) { pin.geometry.setCoordinates(e.get('coords')); });
+    search.events.add('resultselect', function (e) {
+      search.getResult(e.get('index')).then(function (r) {
+        var c = r.geometry.getCoordinates();
+        pin.geometry.setCoordinates(c);
+        map.setCenter(c, 17);
+      });
+    });
+    mapState = {kind: 'y', map: map, pin: pin};
+  }
+
+  function osmMap(start, zoom) {
     loadLeaflet().then(function () {
       var el = document.getElementById('pick-map');
       if (!el) return;
       el.innerHTML = '';
-      var start = f.lat ? [f.lat, f.lon] : (CITY_CENTERS[f.city] || CITY_CENTERS[(S.profile || {}).city] || CITY_CENTERS['Алматы']);
-      var map = L.map(el, {zoomControl: true}).setView(start, f.lat ? 17 : 13);
+      var map = L.map(el, {zoomControl: true}).setView(start, zoom);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19, attribution: '© OpenStreetMap'
       }).addTo(map);
@@ -2358,7 +2432,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
         icon: L.divIcon({className: 'pin', html: '📍', iconSize: [40, 40], iconAnchor: [20, 38]})
       }).addTo(map);
       map.on('click', function (e) { pin.setLatLng(e.latlng); });
-      mapState = {map: map, pin: pin};
+      mapState = {kind: 'l', map: map, pin: pin};
       setTimeout(function () { map.invalidateSize(); }, 200);
     }).catch(function () {
       var el = document.getElementById('pick-map');
@@ -2368,11 +2442,12 @@ textarea.inp { min-height: 84px; resize: vertical; }
 
   function mapDone() {
     if (!mapState) { modal(null); return; }
-    var ll = mapState.pin.getLatLng();
-    mapState.map.remove();
-    mapState = null;
+    var ll = mapState.kind === 'y' ? mapState.pin.geometry.getCoordinates() : mapState.pin.getLatLng();
+    var lat = mapState.kind === 'y' ? ll[0] : ll.lat;
+    var lon = mapState.kind === 'y' ? ll[1] : ll.lng;
+    closeMap();
     modal(null);
-    setCoords(ll.lat, ll.lng);
+    setCoords(lat, lon);
     toast(t('coordsSet'));
   }
 
