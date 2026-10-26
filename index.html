@@ -316,6 +316,26 @@ textarea.inp { min-height: 84px; resize: vertical; }
 .modal .btn { margin-top: 8px; }
 .share-app { justify-content: flex-start; }
 
+/* Пример заявки под микрофоном */
+.example {
+  background: var(--accent-bg); color: var(--text-2); border-radius: 12px;
+  padding: 12px 14px; margin: 4px 0 14px; font-size: 14px; line-height: 1.45;
+}
+.example b { display: block; color: var(--accent); margin-bottom: 4px; font-size: 13px; }
+
+/* Адрес: кнопки GPS / карта / 2GIS и выбор точки */
+.addr-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.addr-tools .chip { font-size: 13px; padding: 8px 12px; }
+#addr-status a { color: var(--accent); font-weight: 600; }
+.err-hint { color: var(--critical); }
+.pick-map {
+  height: 58vh; min-height: 280px; border-radius: 12px; overflow: hidden;
+  background: var(--surface-2); margin: 10px 0 4px; position: relative;
+}
+.map-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); padding: 20px; text-align: center; }
+.pin { font-size: 34px; line-height: 40px; text-align: center; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .35)); }
+.pin.leaflet-marker-icon { background: none; border: 0; }
+
 .toast {
   position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 60;
   background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px;
@@ -359,6 +379,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
   var STEP_SUMMARY = 3;
   var URGENCY = ['urgent', 'normal', 'low'];
   var FIELDS_FROM_AI = ['city', 'point', 'problem', 'todo', 'title', 'brands',
+    'client', 'clientPhone', 'address',
     'urgency', 'size', 'layoutText', 'designWishes'];
 
   // -------------------------------------------------------------------------
@@ -375,7 +396,25 @@ textarea.inp { min-height: 84px; resize: vertical; }
       continueDraft: 'Продолжить черновик',
       profileTitle: 'Давайте познакомимся',
       profileHint: 'Один раз — дальше это подставится в каждую заявку.',
-      name: 'Ваше имя', phone: 'Телефон', city: 'Город', save: 'Сохранить',
+      profileIncomplete: 'Дополните данные: теперь нужны имя и фамилия, телефон и город.',
+      profileConsent: 'Нажимая «Сохранить», вы соглашаетесь, что имя, телефон и город сохраняются для работы с заявками.',
+      name: 'Имя и фамилия', phone: 'Телефон', city: 'Город', save: 'Сохранить',
+      namePh: 'Например, Айгерим Нурланова', phonePh: '+7 7XX XXX XX XX',
+      errName: 'Укажите имя и фамилию', errPhone: 'Номер телефона в виде +7 7XX XXX XX XX', errCity: 'Выберите город',
+      exampleTitle: 'Пример заявки',
+      exampleText: '«Замена баннера в городе Алматы, рынок Тастак, клиент Утебаев, телефон +7 701 123 45 67. Бренд Alina Paint, размеры 2 на 1,5 метра. Также обновить дизайн баннера»',
+      f_address: 'Точный адрес', f_addressPh: 'Улица, дом, ряд, бутик или ориентир',
+      f_client: 'Клиент / контактное лицо', f_clientPh: 'Например, Утебаев',
+      f_clientPhone: 'Телефон клиента',
+      gps: '📍 Я на точке', mapPick: '🗺 На карте', from2gis: '🔗 Из 2GIS', open2gis: 'Открыть в 2GIS',
+      gpsWait: 'Определяю, где вы…', gpsDenied: 'Нет доступа к геолокации. Разрешите её в настройках или введите адрес текстом.',
+      gpsFail: 'Не получилось определить место. Попробуйте ещё раз или выберите на карте.',
+      addrFound: 'Адрес подставлен — проверьте его', coordsSet: 'Точка отмечена на карте',
+      mapTitle: 'Отметьте точку на карте', mapHint: 'Нажмите на карту или перетащите метку на место точки.',
+      mapLoading: 'Загружаю карту…', mapFail: 'Карта не загрузилась. Проверьте интернет или введите адрес текстом.',
+      pasteTitle: 'Адрес из 2GIS',
+      pasteHint: 'В 2GIS откройте точку → «Поделиться» → «Скопировать» и вставьте сюда.',
+      pastePh: 'Вставьте текст или ссылку из 2GIS', find: 'Найти', pasteFail: 'Не нашёл адрес. Проверьте, что вставили ссылку из 2GIS.',
       editProfile: 'изменить',
       steps: ['Помощник', 'Фото', 'Текст и оформление', 'Итог'],
       back: 'Назад', next: 'Дальше', toSummary: 'К итогу', home: 'На главную', done: 'Готово',
@@ -403,11 +442,11 @@ textarea.inp { min-height: 84px; resize: vertical; }
       noPhotoConfirm: 'Без фото дизайну и рекламе сложнее понять задачу. Продолжить без фото?',
       photoLimit: 'Не больше 10 фото', photoBad: 'Это фото не открылось — попробуйте другое',
       textTitle: 'Текст и оформление', textHint: 'Помощник уже заполнил что смог — проверьте и поправьте.',
-      f_title: 'Название заявки', f_point: 'Точка / адрес', f_problem: 'Что случилось',
+      f_title: 'Название заявки', f_point: 'Точка', f_problem: 'Что случилось',
       f_todo: 'Что нужно сделать', f_kind: 'Вид работы', f_brands: 'Бренд',
       f_urgency: 'Срочность', f_size: 'Размеры', f_layoutText: 'Текст на макете',
       f_designWishes: 'Пожелания по оформлению', f_author: 'Кто подаёт',
-      f_pointPh: 'Магазин, ТЦ, рынок, адрес', f_sizePh: 'Ширина × высота, например 3 × 1 м',
+      f_pointPh: 'Рынок, ТЦ или магазин — например, рынок Тастак', f_sizePh: 'Ширина × высота, например 3 × 1 м',
       f_layoutPh: 'Что должно быть написано, на русском и казахском',
       f_wishesPh: 'Цвета, фото, логотипы, на что похоже',
       noBrand: 'Не относится к бренду', choose: '— выберите —',
@@ -442,7 +481,25 @@ textarea.inp { min-height: 84px; resize: vertical; }
       continueDraft: 'Жобаны жалғастыру',
       profileTitle: 'Танысып алайық',
       profileHint: 'Бір рет қана — әрі қарай әр өтінімге өзі қойылады.',
-      name: 'Атыңыз', phone: 'Телефон', city: 'Қала', save: 'Сақтау',
+      profileIncomplete: 'Деректерді толықтырыңыз: енді аты-жөні, телефон және қала керек.',
+      profileConsent: '«Сақтау» батырмасын басу арқылы сіз аты-жөніңіз, телефоныңыз және қалаңыз өтінімдермен жұмыс үшін сақталатынына келісесіз.',
+      name: 'Аты-жөніңіз', phone: 'Телефон', city: 'Қала', save: 'Сақтау',
+      namePh: 'Мысалы, Айгерим Нурланова', phonePh: '+7 7XX XXX XX XX',
+      errName: 'Атыңыз бен тегіңізді жазыңыз', errPhone: 'Телефон нөмірі +7 7XX XXX XX XX түрінде', errCity: 'Қаланы таңдаңыз',
+      exampleTitle: 'Өтінім үлгісі',
+      exampleText: '«Алматы қаласы, Тастак базары, клиент Утебаев, телефоны +7 701 123 45 67. Баннерді ауыстыру керек. Бренд Alina Paint, өлшемі 2-ге 1,5 метр. Баннердің дизайнын да жаңарту керек»',
+      f_address: 'Нақты мекенжай', f_addressPh: 'Көше, үй, қатар, бутик немесе бағдар',
+      f_client: 'Клиент / байланыс тұлғасы', f_clientPh: 'Мысалы, Утебаев',
+      f_clientPhone: 'Клиенттің телефоны',
+      gps: '📍 Мен нүктедемін', mapPick: '🗺 Картада', from2gis: '🔗 2GIS-тен', open2gis: '2GIS-те ашу',
+      gpsWait: 'Орныңызды анықтап жатырмын…', gpsDenied: 'Геолокацияға рұқсат жоқ. Баптауларда рұқсат беріңіз немесе мекенжайды мәтінмен жазыңыз.',
+      gpsFail: 'Орынды анықтау мүмкін болмады. Қайталап көріңіз немесе картадан таңдаңыз.',
+      addrFound: 'Мекенжай қойылды — тексеріңіз', coordsSet: 'Нүкте картада белгіленді',
+      mapTitle: 'Нүктені картадан белгілеңіз', mapHint: 'Картаны басыңыз немесе белгіні нүкте орнына жылжытыңыз.',
+      mapLoading: 'Карта жүктелуде…', mapFail: 'Карта жүктелмеді. Интернетті тексеріңіз немесе мекенжайды мәтінмен жазыңыз.',
+      pasteTitle: '2GIS-тен мекенжай',
+      pasteHint: '2GIS-те нүктені ашыңыз → «Бөлісу» → «Көшіру» және осында қойыңыз.',
+      pastePh: '2GIS-тен мәтінді немесе сілтемені қойыңыз', find: 'Табу', pasteFail: 'Мекенжай табылмады. 2GIS сілтемесін қойғаныңызды тексеріңіз.',
       editProfile: 'өзгерту',
       steps: ['Көмекші', 'Фото', 'Мәтін және безендіру', 'Қорытынды'],
       back: 'Артқа', next: 'Әрі қарай', toSummary: 'Қорытындыға', home: 'Басты бет', done: 'Дайын',
@@ -469,11 +526,11 @@ textarea.inp { min-height: 84px; resize: vertical; }
       noPhotoConfirm: 'Фотосыз дизайн мен жарнамаға тапсырманы түсіну қиынырақ. Фотосыз жалғастырасыз ба?',
       photoLimit: '10 фотодан артық емес', photoBad: 'Бұл фото ашылмады — басқасын көріңіз',
       textTitle: 'Мәтін және безендіру', textHint: 'Көмекші қолынан келгенін толтырды — тексеріп, түзетіңіз.',
-      f_title: 'Өтінім атауы', f_point: 'Нүкте / мекенжай', f_problem: 'Не болды',
+      f_title: 'Өтінім атауы', f_point: 'Нүкте', f_problem: 'Не болды',
       f_todo: 'Не істеу керек', f_kind: 'Жұмыс түрі', f_brands: 'Бренд',
       f_urgency: 'Шұғылдығы', f_size: 'Өлшемдері', f_layoutText: 'Макеттегі мәтін',
       f_designWishes: 'Безендіру бойынша тілектер', f_author: 'Кім береді',
-      f_pointPh: 'Дүкен, СО, базар, мекенжай', f_sizePh: 'Ені × биіктігі, мысалы 3 × 1 м',
+      f_pointPh: 'Базар, СО немесе дүкен — мысалы, Тастак базары', f_sizePh: 'Ені × биіктігі, мысалы 3 × 1 м',
       f_layoutPh: 'Не жазылуы керек, орысша және қазақша',
       f_wishesPh: 'Түстер, фото, логотиптер, неге ұқсас',
       noBrand: 'Брендке қатысы жоқ', choose: '— таңдаңыз —',
@@ -647,6 +704,45 @@ textarea.inp { min-height: 84px; resize: vertical; }
   var installEvent = null;
 
   // -------------------------------------------------------------------------
+  // Профиль и телефоны
+  // -------------------------------------------------------------------------
+  // Телефон Казахстана: 10 цифр после +7. Принимаем 8…, 7…, +7… и без кода.
+  function normPhone(p) {
+    var d = String(p || '').replace(/\D/g, '');
+    if (d.length === 11 && (d[0] === '8' || d[0] === '7')) d = d.slice(1);
+    if (d.length !== 10) return '';
+    return '+7 ' + d.slice(0, 3) + ' ' + d.slice(3, 6) + ' ' + d.slice(6, 8) + ' ' + d.slice(8);
+  }
+  function fullNameOk(n) {
+    return String(n || '').trim().split(/\s+/).filter(function (w) { return w.length > 1; }).length >= 2;
+  }
+  function profileComplete(p) {
+    return !!(p && fullNameOk(p.name) && normPhone(p.phone) && p.city);
+  }
+  function deviceName() {
+    if (IS_IOS) return 'iPhone';
+    if (/Android/i.test(navigator.userAgent)) return 'Android';
+    return 'Компьютер';
+  }
+
+  // -------------------------------------------------------------------------
+  // Карта и 2GIS
+  // -------------------------------------------------------------------------
+  var LEAFLET = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/';
+  // Центры городов из справочника — с них начинается карта, если нет GPS.
+  var CITY_CENTERS = {
+    'Алматы': [43.2389, 76.8897], 'Астана': [51.1694, 71.4491], 'Кокшетау': [53.2833, 69.3833],
+    'Тараз': [42.9000, 71.3667], 'Шымкент': [42.3417, 69.5901], 'Талдыкорган': [45.0156, 78.3739],
+    'Караганда': [49.8047, 73.1094], 'Усть-Каменогорск': [49.9483, 82.6281], 'Павлодар': [52.2873, 76.9674],
+    'Петропавловск': [54.8667, 69.1500], 'Уральск': [51.2333, 51.3667], 'Актобе': [50.2839, 57.1670],
+    'Актау': [43.6500, 51.1667], 'Атырау': [47.1167, 51.8833], 'Семей': [50.4111, 80.2275],
+    'Костанай': [53.2144, 63.6246]
+  };
+  function twoGisUrl(lat, lon) {
+    return 'https://2gis.kz/geo/' + Number(lon).toFixed(6) + ',' + Number(lat).toFixed(6);
+  }
+
+  // -------------------------------------------------------------------------
   // Мелочи
   // -------------------------------------------------------------------------
   function esc(s) {
@@ -800,17 +896,23 @@ textarea.inp { min-height: 84px; resize: vertical; }
 
   function viewProfile() {
     var p = S.profile || {};
+    var incomplete = S.profile && !profileComplete(S.profile);
     return '<h1>' + esc(t('profileTitle')) + '</h1><p class="sub">' + esc(t('profileHint')) + '</p>' +
+      (incomplete ? '<div class="note warn">' + esc(t('profileIncomplete')) + '</div>' : '') +
       '<div class="card">' +
       '<div class="field"><label for="p-name">' + esc(t('name')) + ' <span class="req">*</span></label>' +
-      '<input class="inp" id="p-name" autocomplete="name" value="' + esc(p.name || '') + '"></div>' +
-      '<div class="field"><label for="p-phone">' + esc(t('phone')) + '</label>' +
-      '<input class="inp" id="p-phone" type="tel" autocomplete="tel" placeholder="+7" value="' + esc(p.phone || '') + '"></div>' +
-      '<div class="field"><label for="p-city">' + esc(t('city')) + '</label>' +
-      '<select class="inp" id="p-city">' + cityOptions(p.city || '') + '</select></div>' +
+      '<input class="inp" id="p-name" autocomplete="name" placeholder="' + esc(t('namePh')) + '" value="' + esc(p.name || '') + '">' +
+      '<div class="hint err-hint" id="p-name-err" hidden>' + esc(t('errName')) + '</div></div>' +
+      '<div class="field"><label for="p-phone">' + esc(t('phone')) + ' <span class="req">*</span></label>' +
+      '<input class="inp" id="p-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="' + esc(t('phonePh')) + '" value="' + esc(p.phone || '') + '">' +
+      '<div class="hint err-hint" id="p-phone-err" hidden>' + esc(t('errPhone')) + '</div></div>' +
+      '<div class="field"><label for="p-city">' + esc(t('city')) + ' <span class="req">*</span></label>' +
+      '<select class="inp" id="p-city">' + cityOptions(p.city || '') + '</select>' +
+      '<div class="hint err-hint" id="p-city-err" hidden>' + esc(t('errCity')) + '</div></div>' +
       '<button class="btn primary block" data-act="profile-save">' + esc(t('save')) + '</button>' +
+      '<p class="hint" style="margin-top:12px">' + esc(t('profileConsent')) + '</p>' +
       '</div>' +
-      (S.profile ? '<button class="btn ghost block" data-act="home">' + esc(t('back')) + '</button>' : '');
+      (S.profile && !incomplete ? '<button class="btn ghost block" data-act="home">' + esc(t('back')) + '</button>' : '');
   }
 
   function itemHtml(r) {
@@ -918,6 +1020,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       h += '<div class="mic-box"><label class="btn primary file-btn">' + esc(t('recordFile')) +
         '<input type="file" accept="audio/*" capture data-change="audio"></label></div>';
     }
+    h += '<div class="example"><b>💡 ' + esc(t('exampleTitle')) + '</b>' + esc(t('exampleText')) + '</div>';
     h += '<div class="say-row"><input class="inp" id="say" enterkeyhint="send" placeholder="' + esc(t('typeHere')) + '">' +
       '<button class="btn primary" data-act="say" aria-label="send">➤</button></div>' +
       '<div class="tools"><button class="toggle" data-act="voice">' + esc(S.voice ? t('voiceOn') : t('voiceOff')) + '</button>' +
@@ -967,20 +1070,52 @@ textarea.inp { min-height: 84px; resize: vertical; }
     var v = S.cur.fields[key] || '';
     var label = '<label for="f-' + key + '">' + esc(t('f_' + key)) + (opts.req ? ' <span class="req">*</span>' : '') + '</label>';
     var ph = opts.ph ? ' placeholder="' + esc(t(opts.ph)) + '"' : '';
+    var tel = opts.tel ? ' type="tel" inputmode="tel"' : '';
     var ctl = opts.area
       ? '<textarea class="inp" id="f-' + key + '" data-f="' + key + '"' + ph + '>' + esc(v) + '</textarea>'
-      : '<input class="inp" id="f-' + key + '" data-f="' + key + '"' + ph + ' value="' + esc(v) + '">';
+      : '<input class="inp" id="f-' + key + '" data-f="' + key + '"' + ph + tel + ' value="' + esc(v) + '">';
     return '<div class="field">' + label + ctl + '</div>';
+  }
+
+  // Адрес: текстом или тремя кнопками — GPS, карта, текст из 2GIS.
+  function addressBlock() {
+    var f = S.cur.fields;
+    return '<div class="field"><label for="f-address">' + esc(t('f_address')) + ' <span class="req">*</span></label>' +
+      '<textarea class="inp" id="f-address" data-f="address" rows="2" placeholder="' + esc(t('f_addressPh')) + '">' +
+      esc(f.address || '') + '</textarea>' +
+      '<div class="addr-tools">' +
+      '<button class="chip" data-act="gps">' + esc(t('gps')) + '</button>' +
+      '<button class="chip" data-act="map-pick">' + esc(t('mapPick')) + '</button>' +
+      '<button class="chip" data-act="paste-2gis">' + esc(t('from2gis')) + '</button>' +
+      '</div><div id="addr-status" class="hint">' + addrStatusHtml() + '</div></div>';
+  }
+  function addrStatusHtml() {
+    var f = S.cur.fields;
+    if (!f.mapUrl) return '';
+    return '✅ ' + esc(t('coordsSet')) + ' · <a href="' + esc(f.mapUrl) + '" target="_blank" rel="noopener">' +
+      esc(t('open2gis')) + '</a>';
+  }
+  function refreshAddress() {
+    var inp = document.getElementById('f-address');
+    if (inp) { inp.value = S.cur.fields.address || ''; inp.classList.remove('bad'); }
+    var st = document.getElementById('addr-status');
+    if (st) st.innerHTML = addrStatusHtml();
   }
 
   function stepText() {
     var r = S.cur;
     var f = r.fields;
+    // Помощник город не угадывает — спрашивает. Здесь, если так и не назвали,
+    // подставляем город из профиля: человек увидит и при нужде поменяет.
+    if (!f.city && S.profile && S.profile.city) f.city = S.profile.city;
     var h = '<h1>' + esc(t('textTitle')) + '</h1><p class="sub">' + esc(t('textHint')) + '</p>';
     h += '<div class="card">' + fieldInput('title', {req: true});
     h += '<div class="field"><label for="f-city">' + esc(t('city')) + ' <span class="req">*</span></label>' +
       '<select class="inp" id="f-city" data-f="city">' + cityOptions(f.city || '') + '</select></div>';
     h += fieldInput('point', {req: true, ph: 'f_pointPh'});
+    h += addressBlock();
+    h += fieldInput('client', {req: true, ph: 'f_clientPh'});
+    h += fieldInput('clientPhone', {req: true, ph: 'phonePh', tel: true});
     h += fieldInput('problem', {req: true, area: true});
     h += fieldInput('todo', {area: true});
     h += '</div><div class="card">';
@@ -1000,7 +1135,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       h += '<button class="chip' + ((f.urgency || 'normal') === u ? ' on' : '') + '" data-act="urg" data-u="' + u + '">' + esc(t('u_' + u)) + '</button>';
     });
     h += '</div></div>';
-    h += fieldInput('size', {ph: 'f_sizePh'});
+    h += fieldInput('size', {req: true, ph: 'f_sizePh'});
     if (hasDesign(r.route)) {
       h += fieldInput('layoutText', {area: true, ph: 'f_layoutPh'});
       h += fieldInput('designWishes', {area: true, ph: 'f_wishesPh'});
@@ -1021,6 +1156,10 @@ textarea.inp { min-height: 84px; resize: vertical; }
       ['u', dict.f_urgency, dict['u_' + (f.urgency || 'normal')]],
       ['c', dict.city, f.city],
       ['p', dict.f_point, f.point],
+      ['ad', dict.f_address, f.address],
+      ['mp', '2GIS', f.mapUrl],
+      ['cl', dict.f_client, f.client],
+      ['cp', dict.f_clientPhone, f.clientPhone],
       ['t', dict.f_title, f.title],
       ['pr', dict.f_problem, f.problem],
       ['td', dict.f_todo, f.todo],
@@ -1048,6 +1187,11 @@ textarea.inp { min-height: 84px; resize: vertical; }
     var dict = T[S.lang];
     summaryRows(r, dict).forEach(function (row) {
       if (row[0] === 'r') return;
+      if (row[0] === 'mp') {
+        h += '<dt>' + esc(row[1]) + '</dt><dd><a href="' + esc(row[2]) + '" target="_blank" rel="noopener">' +
+          esc(t('open2gis')) + '</a></dd>';
+        return;
+      }
       h += '<dt>' + esc(row[1]) + '</dt><dd>' + esc(row[2]) + '</dd>';
     });
     h += '</dl>';
@@ -1076,13 +1220,14 @@ textarea.inp { min-height: 84px; resize: vertical; }
   }
 
   function newRequest() {
-    if (!S.profile) { S.afterProfile = 'new'; S.screen = 'profile'; render(); return; }
+    if (!profileComplete(S.profile)) { S.afterProfile = 'new'; S.screen = 'profile'; render(); return; }
     var now = Date.now();
     S.cur = {
       id: uid(), createdAt: now, updatedAt: now, status: 'draft', step: 0,
       number: '', route: ROUTE, aiDone: false, rejected: false,
       chat: [{role: 'model', text: t('greet'), local: true}],
-      fields: {city: S.profile.city || '', kind: BANNER, urgency: 'normal', brands: [], noBrand: false},
+      // Город не подставляем: помощник обязан его спросить (подскажет город из профиля).
+      fields: {city: '', kind: BANNER, urgency: 'normal', brands: [], noBrand: false},
       touched: {},
       author: {name: S.profile.name || '', phone: S.profile.phone || ''},
       photos: [], xlsx: null, xlsxAt: 0, driveId: '', driveAt: 0
@@ -1135,15 +1280,27 @@ textarea.inp { min-height: 84px; resize: vertical; }
   function validateText() {
     var f = S.cur.fields;
     var bad = [];
-    ['title', 'city', 'point', 'problem'].forEach(function (k) {
+    ['title', 'city', 'point', 'address', 'client', 'clientPhone', 'problem', 'size'].forEach(function (k) {
       if (!String(f[k] || '').trim()) bad.push('f-' + k);
     });
+    // Телефон клиента приводим к виду +7 XXX XXX XX XX; «уточнить» не принимаем.
+    var phoneBad = false;
+    if (String(f.clientPhone || '').trim()) {
+      var np = normPhone(f.clientPhone);
+      if (np) {
+        f.clientPhone = np;
+        document.getElementById('f-clientPhone').value = np;
+      } else {
+        phoneBad = true;
+        bad.push('f-clientPhone');
+      }
+    }
     var brandOk = f.noBrand || (f.brands && f.brands.length);
     bad.forEach(function (id) { document.getElementById(id).classList.add('bad'); });
     if (!brandOk) document.getElementById('brands').classList.add('bad');
     if (bad.length) {
       document.getElementById(bad[0]).scrollIntoView({block: 'center'});
-      toast(t('required'));
+      toast(phoneBad && bad.length === 1 ? t('errPhone') : t('required'));
       return false;
     }
     if (!brandOk) {
@@ -1359,7 +1516,11 @@ textarea.inp { min-height: 84px; resize: vertical; }
     renderChat();
     updateMicUI();
     var known = {};
-    Object.keys(r.fields).forEach(function (k) { if (k !== 'noBrand') known[k] = r.fields[k]; });
+    Object.keys(r.fields).forEach(function (k) {
+      if (k === 'noBrand' && !r.fields.noBrand) return;
+      if (k === 'lat' || k === 'lon' || k === 'mapUrl') return;
+      known[k] = r.fields[k];
+    });
     if (r.route) known.route = r.route;
     server('assistantTurn', audio, text, {
       history: history, fields: known,
@@ -1408,6 +1569,10 @@ textarea.inp { min-height: 84px; resize: vertical; }
       if (k === 'urgency' && URGENCY.indexOf(v) < 0) return;
       r.fields[k] = v;
     });
+    if (f.noBrand === true && !r.touched.brands) {
+      r.fields.noBrand = true;
+      r.fields.brands = [];
+    }
   }
 
   function speak(text, lang) {
@@ -1516,7 +1681,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
   // с повышением FORMAT_VERSION (колонка «Версия формата»), чтобы система
   // могла отличить старые файлы от новых. Новые колонки — только в конец.
   // -------------------------------------------------------------------------
-  var FORMAT_VERSION = 1;
+  // 2 — добавлены точный адрес, координаты, ссылка 2GIS и клиент (в конец).
+  var FORMAT_VERSION = 2;
 
   // Дата как её видят в Казахстане: ExcelJS пишет даты по UTC, поэтому
   // сдвигаем на смещение часового пояса телефона.
@@ -1555,7 +1721,14 @@ textarea.inp { min-height: 84px; resize: vertical; }
     ['Телефон', function (r) { return r.author.phone; }, '@'],
     ['Фото, шт.', function (r) { return r.photos.length; }],
     ['Номер временный', function (r) { return r.numberLocal ? 'Да' : 'Нет'; }],
-    ['Версия формата', function () { return FORMAT_VERSION; }]
+    ['Версия формата', function () { return FORMAT_VERSION; }],
+    // --- формат 2 ---
+    ['Точный адрес', function (r) { return r.fields.address; }],
+    ['Широта', function (r) { return r.fields.lat === undefined ? '' : r.fields.lat; }, '0.000000'],
+    ['Долгота', function (r) { return r.fields.lon === undefined ? '' : r.fields.lon; }, '0.000000'],
+    ['Ссылка 2GIS', function (r) { return r.fields.mapUrl; }],
+    ['Клиент', function (r) { return r.fields.client; }],
+    ['Телефон клиента', function (r) { return r.fields.clientPhone; }, '@']
   ];
 
   function addDataSheet(wb, r) {
@@ -1612,7 +1785,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
         a.font = {bold: true, color: {argb: 'FF4A5A70'}};
         a.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFF2F4F7'}};
         a.alignment = {vertical: 'top', wrapText: true};
-        b.value = x[2];
+        b.value = x[0] === 'mp' ? {text: 'Открыть в 2GIS', hyperlink: x[2]} : x[2];
+        if (x[0] === 'mp') b.font = {color: {argb: 'FF1F5FD0'}, underline: true};
         b.alignment = {vertical: 'top', wrapText: true};
         if (x[0] === 'r') {
           b.font = {bold: true};
@@ -1742,7 +1916,10 @@ textarea.inp { min-height: 84px; resize: vertical; }
     var lines = [
       'Заявка ' + r.number + ' · ' + routeName(r.route, RU),
       [f.city, f.point].filter(Boolean).join(', '),
+      f.address ? 'Адрес: ' + f.address : '',
+      f.mapUrl ? '2GIS: ' + f.mapUrl : '',
       f.title || f.problem,
+      f.client ? 'Клиент: ' + [f.client, f.clientPhone].filter(Boolean).join(', ') : '',
       'Срочность: ' + RU['u_' + (f.urgency || 'normal')],
       'Подал: ' + [r.author.name, r.author.phone].filter(Boolean).join(', ')
     ];
@@ -1776,7 +1953,9 @@ textarea.inp { min-height: 84px; resize: vertical; }
       brands: f.noBrand ? RU.noBrand : (f.brands || []).join(', '),
       size: f.size, urgency: RU['u_' + (f.urgency || 'normal')],
       name: r.author.name, phone: r.author.phone, photos: r.photos.length,
-      turns: r.chat.filter(function (m) { return m.role === 'user'; }).length
+      turns: r.chat.filter(function (m) { return m.role === 'user'; }).length,
+      address: f.address, client: f.client, clientPhone: f.clientPhone, map: f.mapUrl,
+      userId: S.userId
     }).catch(function (e) { console.warn('logRequest', e); });
   }
 
@@ -1947,7 +2126,17 @@ textarea.inp { min-height: 84px; resize: vertical; }
         copyText(shareText(r, !!r.driveUrl));
         markSent(r);
         break;
-      case 'modal-close': modal(null); render(); break;
+      case 'modal-close':
+        if (mapState) { mapState.map.remove(); mapState = null; }
+        modal(null);
+        // Итог перерисовываем (мог смениться статус), форму — нет: сбился бы скролл.
+        if (!S.cur || S.cur.step === STEP_SUMMARY) render();
+        break;
+      case 'gps': useGps(); break;
+      case 'map-pick': openMapPicker(); break;
+      case 'map-done': mapDone(); break;
+      case 'paste-2gis': openPaste2gis(); break;
+      case 'paste-2gis-go': paste2gisGo(); break;
       case 'ask-yes': modal(null); if (askResolve) askResolve(true); askResolve = null; break;
       case 'ask-no': modal(null); if (askResolve) askResolve(false); askResolve = null; break;
       case 'del':
@@ -2018,21 +2207,208 @@ textarea.inp { min-height: 84px; resize: vertical; }
   }
 
   function saveProfile() {
-    var name = document.getElementById('p-name').value.trim();
-    if (!name) {
-      document.getElementById('p-name').classList.add('bad');
+    var nameEl = document.getElementById('p-name');
+    var phoneEl = document.getElementById('p-phone');
+    var cityEl = document.getElementById('p-city');
+    var name = nameEl.value.trim().replace(/\s+/g, ' ');
+    var phone = normPhone(phoneEl.value);
+    var city = cityEl.value;
+    var checks = [[nameEl, 'p-name-err', fullNameOk(name)], [phoneEl, 'p-phone-err', !!phone],
+      [cityEl, 'p-city-err', !!city]];
+    var firstBad = null;
+    checks.forEach(function (c) {
+      c[0].classList.toggle('bad', !c[2]);
+      document.getElementById(c[1]).hidden = c[2];
+      if (!c[2] && !firstBad) firstBad = c[0];
+    });
+    if (firstBad) {
+      firstBad.scrollIntoView({block: 'center'});
       toast(t('required'));
       return;
     }
-    S.profile = {
-      k: 'profile', name: name,
-      phone: document.getElementById('p-phone').value.trim(),
-      city: document.getElementById('p-city').value
-    };
+    phoneEl.value = phone;
+    S.profile = {k: 'profile', name: name, phone: phone, city: city, synced: false};
     dbPut('meta', S.profile).then(function () {
+      syncProfile();
       if (S.afterProfile === 'new') { S.afterProfile = null; newRequest(); return; }
       S.screen = 'home';
       render();
+    });
+  }
+
+  // Профиль — в базу пользователей. Нет связи: повторим при следующем открытии.
+  function syncProfile() {
+    var p = S.profile;
+    if (!p || p.synced || !profileComplete(p) || !S.userId) return;
+    server('registerUser', {id: S.userId, name: p.name, phone: p.phone, city: p.city,
+      device: deviceName(), standalone: isStandalone()})
+      .then(function (res) {
+        if (!res || !res.ok) return;
+        p.synced = true;
+        dbPut('meta', p);
+      })
+      .catch(function (e) { console.warn('registerUser', e); });
+  }
+
+  // ID устройства: один на телефон, по нему строка в базе пользователей.
+  function loadUserId() {
+    return dbGet('meta', 'device').then(function (d) {
+      if (d && d.id) return d.id;
+      var id = 'U-' + uid();
+      return dbPut('meta', {k: 'device', id: id}).then(function () { return id; });
+    });
+  }
+
+  function loadConfig() {
+    server('getConfig', {userId: S.userId, device: deviceName(), standalone: isStandalone()}).then(function (c) {
+      if (!c) return;
+      if (c.cities && c.cities.length) CFG.cities = c.cities;
+      if (c.kinds && c.kinds.length) CFG.kinds = c.kinds;
+      if (c.brands && c.brands.length) CFG.brands = c.brands;
+      if (S.aiReady !== !!c.aiReady) {
+        S.aiReady = !!c.aiReady;
+        if (S.screen === 'wizard' && S.cur && S.cur.step === 0) render();
+      }
+    }).catch(function (e) { console.warn('getConfig', e); });
+  }
+
+  // -------------------------------------------------------------------------
+  // Адрес: GPS, карта (Leaflet + OpenStreetMap), текст из 2GIS
+  // -------------------------------------------------------------------------
+  function reverseGeocode(lat, lon) {
+    var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1' +
+      '&accept-language=ru&lat=' + lat + '&lon=' + lon;
+    return fetch(url).then(function (r) { return r.json(); }).then(function (j) {
+      var a = j && j.address || {};
+      var street = [a.road || a.pedestrian || a.footway, a.house_number].filter(Boolean).join(', ');
+      var parts = [street, a.neighbourhood || a.suburb || a.quarter, a.city || a.town || a.village]
+        .filter(Boolean);
+      if (parts.length) return parts.join(', ');
+      return String(j && j.display_name || '').split(', ').slice(0, 3).join(', ');
+    });
+  }
+
+  // Координаты в заявку + ссылка 2GIS; адрес подставляем, если человек
+  // не писал его руками.
+  function setCoords(lat, lon) {
+    var f = S.cur.fields;
+    f.lat = Math.round(lat * 1e6) / 1e6;
+    f.lon = Math.round(lon * 1e6) / 1e6;
+    f.mapUrl = twoGisUrl(f.lat, f.lon);
+    touch();
+    refreshAddress();
+    return reverseGeocode(f.lat, f.lon).then(function (addr) {
+      if (addr && (!S.cur.touched.address || !String(f.address || '').trim())) {
+        f.address = addr;
+        touch();
+        refreshAddress();
+        toast(t('addrFound'));
+      }
+    }).catch(function (e) { console.warn('reverse', e); });
+  }
+
+  function useGps() {
+    if (!navigator.geolocation) { toast(t('gpsFail')); return; }
+    busy(t('gpsWait'));
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      busy(null);
+      setCoords(pos.coords.latitude, pos.coords.longitude);
+    }, function (err) {
+      busy(null);
+      toast(err && err.code === 1 ? t('gpsDenied') : t('gpsFail'));
+    }, {enableHighAccuracy: true, timeout: 15000, maximumAge: 60000});
+  }
+
+  var leafletLoading = null;
+  function loadLeaflet() {
+    if (window.L && window.L.map) return Promise.resolve();
+    if (leafletLoading) return leafletLoading;
+    leafletLoading = new Promise(function (resolve, reject) {
+      var css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = LEAFLET + 'leaflet.min.css';
+      document.head.appendChild(css);
+      var s = document.createElement('script');
+      s.src = LEAFLET + 'leaflet.min.js';
+      s.onload = function () { resolve(); };
+      s.onerror = function () { leafletLoading = null; reject(new Error('leaflet')); };
+      document.head.appendChild(s);
+    });
+    return leafletLoading;
+  }
+
+  var mapState = null;
+  function openMapPicker() {
+    var f = S.cur.fields;
+    modal('<h2>' + esc(t('mapTitle')) + '</h2><p class="hint">' + esc(t('mapHint')) + '</p>' +
+      '<div id="pick-map" class="pick-map"><div class="map-loading">' + esc(t('mapLoading')) + '</div></div>' +
+      '<button class="btn primary block" data-act="map-done">' + esc(t('done')) + '</button>' +
+      '<button class="btn ghost block" data-act="modal-close">' + esc(t('cancel')) + '</button>');
+    loadLeaflet().then(function () {
+      var el = document.getElementById('pick-map');
+      if (!el) return;
+      el.innerHTML = '';
+      var start = f.lat ? [f.lat, f.lon] : (CITY_CENTERS[f.city] || CITY_CENTERS[(S.profile || {}).city] || CITY_CENTERS['Алматы']);
+      var map = L.map(el, {zoomControl: true}).setView(start, f.lat ? 17 : 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '© OpenStreetMap'
+      }).addTo(map);
+      var pin = L.marker(start, {
+        draggable: true,
+        icon: L.divIcon({className: 'pin', html: '📍', iconSize: [40, 40], iconAnchor: [20, 38]})
+      }).addTo(map);
+      map.on('click', function (e) { pin.setLatLng(e.latlng); });
+      mapState = {map: map, pin: pin};
+      setTimeout(function () { map.invalidateSize(); }, 200);
+    }).catch(function () {
+      var el = document.getElementById('pick-map');
+      if (el) el.innerHTML = '<div class="map-loading">' + esc(t('mapFail')) + '</div>';
+    });
+  }
+
+  function mapDone() {
+    if (!mapState) { modal(null); return; }
+    var ll = mapState.pin.getLatLng();
+    mapState.map.remove();
+    mapState = null;
+    modal(null);
+    setCoords(ll.lat, ll.lng);
+    toast(t('coordsSet'));
+  }
+
+  function openPaste2gis() {
+    modal('<h2>' + esc(t('pasteTitle')) + '</h2><p class="hint">' + esc(t('pasteHint')) + '</p>' +
+      '<textarea class="inp" id="paste-2gis" rows="4" placeholder="' + esc(t('pastePh')) + '"></textarea>' +
+      '<button class="btn primary block" data-act="paste-2gis-go">' + esc(t('find')) + '</button>' +
+      '<button class="btn ghost block" data-act="modal-close">' + esc(t('cancel')) + '</button>');
+  }
+
+  function paste2gisGo() {
+    var text = (document.getElementById('paste-2gis') || {}).value || '';
+    if (!text.trim()) return;
+    busy('…');
+    server('resolve2gis', text).then(function (res) {
+      busy(null);
+      if (!res || !res.ok || (!res.address && !res.lat && !res.url)) { toast(t('pasteFail')); return; }
+      modal(null);
+      var f = S.cur.fields;
+      if (res.address) {
+        f.address = res.address;
+        S.cur.touched.address = true;
+      }
+      if (res.lat && res.lon) {
+        setCoords(res.lat, res.lon);
+      } else if (res.url) {
+        f.mapUrl = res.url;
+        touch();
+        refreshAddress();
+      }
+      touch();
+      refreshAddress();
+      toast(t('addrFound'));
+    }).catch(function () {
+      busy(null);
+      toast(t('errNet'));
     });
   }
 
@@ -2069,24 +2445,17 @@ textarea.inp { min-height: 84px; resize: vertical; }
       });
     }
 
-    server('getConfig').then(function (c) {
-      if (!c) return;
-      if (c.cities && c.cities.length) CFG.cities = c.cities;
-      if (c.kinds && c.kinds.length) CFG.kinds = c.kinds;
-      if (c.brands && c.brands.length) CFG.brands = c.brands;
-      if (S.aiReady !== !!c.aiReady) {
-        S.aiReady = !!c.aiReady;
-        if (S.screen === 'wizard' && S.cur && S.cur.step === 0) render();
-      }
-    }).catch(function (e) { console.warn('getConfig', e); });
-
     idbOpen()
-      .then(function () { return dbGet('meta', 'profile'); })
+      .then(loadUserId)
+      .then(function (id) { S.userId = id; return dbGet('meta', 'profile'); })
       .then(function (p) { S.profile = p; return refreshList(); })
       .catch(function (e) { console.warn('start', e); })
       .then(function () {
-        S.screen = S.profile ? 'home' : 'profile';
+        // Профиль из старой версии (без фамилии или телефона) — сначала дополнить.
+        S.screen = profileComplete(S.profile) ? 'home' : 'profile';
         render();
+        loadConfig();
+        syncProfile();
       });
   }
 
