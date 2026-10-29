@@ -294,6 +294,10 @@ textarea.inp { min-height: 84px; resize: vertical; }
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 13px 14px; margin-bottom: 8px; box-shadow: var(--shadow);
 }
+.folder-item { border-left: 4px solid var(--accent); }
+.modal .tile.mode { margin-top: 10px; width: 100%; text-align: left; }
+.modal .tile.mode b { font-size: 16px; }
+.btn[disabled] { opacity: .45; pointer-events: none; }
 .item-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
 .item b { display: block; margin: 4px 0 2px; font-size: 15px; }
 .item .meta { font-size: 13px; color: var(--text-2); }
@@ -396,10 +400,11 @@ textarea.inp { min-height: 84px; resize: vertical; }
   var ROUTE = 'design_ads';
   var BANNER = 'Баннер';
   var STEP_SUMMARY = 3;
+  var MAX_IN_FOLDER = 15;
   var URGENCY = ['urgent', 'normal', 'low'];
   var FIELDS_FROM_AI = ['city', 'point', 'problem', 'todo', 'title', 'brands',
     'client', 'clientPhone', 'address',
-    'urgency', 'size', 'layoutText', 'designWishes'];
+    'urgency', 'size', 'qty', 'layoutText', 'designWishes'];
 
   // -------------------------------------------------------------------------
   // Тексты RU / KZ
@@ -413,6 +418,20 @@ textarea.inp { min-height: 84px; resize: vertical; }
       rejectedNote: 'Заявка не принята: на данный момент подача заявки возможна только на баннеры.',
       myReqs: 'Мои заявки', myReqsHint: 'Поданные заявки и черновики',
       continueDraft: 'Продолжить черновик',
+      modeTitle: 'Сколько заявок подаёте?', modeOne: '📄 Одна заявка', modeOneHint: 'Один баннер или одна точка',
+      modeMany: '📁 Несколько заявок', modeManyHint: 'Папка до 15 заявок — уйдут одним письмом в общем Excel',
+      folderNameTitle: 'Название папки', folderNamePh: 'Например, Выезд Алматы 29.10',
+      folderNameErr: 'Дайте папке название', create: 'Создать', rename: '✏️ Переименовать',
+      folder: 'Папка', folderCount: 'Заявок: {n} из {max}', folderAdd: '➕ Добавить заявку',
+      folderFull: 'В папке уже 15 заявок — это максимум', folderEmpty: 'В папке пока нет заявок. Нажмите «Добавить заявку».',
+      folderSend: '✉️ Отправить папку на почту', folderDl: '⬇️ Скачать общий Excel', folderDel: 'Удалить папку',
+      folderDelConfirm: 'Удалить папку и все заявки в ней с этого телефона?', toFolder: '📁 Вернуться в папку',
+      folderInSum: 'Заявка из папки «{name}» — отправляется вместе со всей папкой.',
+      folderNoReady: 'В папке нет готовых заявок: дойдите в каждой до итога.',
+      folderDrafts: 'Не дозаполнено заявок: {n}. Они не попадут в письмо. Отправить остальные ({m})?',
+      folderSendShort: 'Отправить', folderMailOk: 'Папка «{name}» ({n} заявок) отправлена одним Excel-файлом на почту {to}.',
+      folderAgain: 'Эта папка уже отправлена на почту. Отправить ещё раз?', continueFolder: 'Продолжить папку',
+      folderTile: '{n} из {max} заявок', folderSent: 'Отправлена',
       profileTitle: 'Давайте познакомимся',
       profileHint: 'Один раз — дальше это подставится в каждую заявку.',
       profileIncomplete: 'Дополните данные: теперь нужны имя и фамилия, телефон и город.',
@@ -421,7 +440,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       namePh: 'Например, Айгерим Нурланова', phonePh: '+7 7XX XXX XX XX',
       errName: 'Укажите имя и фамилию', errPhone: 'Номер телефона в виде +7 7XX XXX XX XX', errCity: 'Выберите город',
       exampleTitle: 'Пример заявки',
-      exampleText: '«Замена баннера в городе Алматы, рынок Тастак, клиент Утебаев, телефон +7 701 123 45 67. Бренд Alina Paint, размеры 2 на 1,5 метра. Также обновить дизайн баннера»',
+      exampleText: '«Замена баннера в городе Алматы, рынок Тастак, клиент Утебаев, телефон +7 701 123 45 67. Бренд Alina Paint, размеры 2 на 1,5 метра, 2 баннера. Также обновить дизайн баннера»',
       f_address: 'Точный адрес', f_addressPh: 'Улица, дом, ряд, бутик или ориентир',
       f_client: 'Клиент / контактное лицо', f_clientPh: 'Например, Утебаев',
       f_clientPhone: 'Телефон клиента',
@@ -469,7 +488,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
       textTitle: 'Текст и оформление', textHint: 'Помощник уже заполнил что смог — проверьте и поправьте.',
       f_title: 'Название заявки', f_point: 'Точка', f_problem: 'Что случилось',
       f_todo: 'Что нужно сделать', f_kind: 'Вид работы', f_brands: 'Бренд',
-      f_urgency: 'Срочность', f_size: 'Размеры', f_layoutText: 'Текст на макете',
+      f_urgency: 'Срочность', f_size: 'Размеры', f_qty: 'Количество баннеров', f_qtyPh: 'Например, 2',
+      errQty: 'Укажите количество баннеров — число от 1 до 99', f_layoutText: 'Текст на макете',
       f_designWishes: 'Пожелания по оформлению', f_author: 'Кто подаёт',
       f_pointPh: 'Рынок, ТЦ или магазин — например, рынок Тастак', f_sizePh: 'Ширина × высота, например 3 × 1 м',
       f_layoutPh: 'Что должно быть написано, на русском и казахском',
@@ -504,6 +524,20 @@ textarea.inp { min-height: 84px; resize: vertical; }
       rejectedNote: 'Өтінім қабылданбады: қазіргі уақытта өтінімді тек баннерлерге беруге болады.',
       myReqs: 'Менің өтінімдерім', myReqsHint: 'Берілген өтінімдер мен жобалар',
       continueDraft: 'Жобаны жалғастыру',
+      modeTitle: 'Қанша өтінім бересіз?', modeOne: '📄 Бір өтінім', modeOneHint: 'Бір баннер немесе бір нүкте',
+      modeMany: '📁 Бірнеше өтінім', modeManyHint: '15 өтінімге дейінгі папка — бір хатпен ортақ Excel-де кетеді',
+      folderNameTitle: 'Папка атауы', folderNamePh: 'Мысалы, Алматы сапары 29.10',
+      folderNameErr: 'Папкаға атау беріңіз', create: 'Құру', rename: '✏️ Атауын өзгерту',
+      folder: 'Папка', folderCount: 'Өтінімдер: {n} / {max}', folderAdd: '➕ Өтінім қосу',
+      folderFull: 'Папкада 15 өтінім бар — бұл ең көбі', folderEmpty: 'Папкада әзірге өтінім жоқ. «Өтінім қосу» басыңыз.',
+      folderSend: '✉️ Папканы поштаға жіберу', folderDl: '⬇️ Ортақ Excel жүктеу', folderDel: 'Папканы өшіру',
+      folderDelConfirm: 'Папканы және ондағы барлық өтінімді осы телефоннан өшіресіз бе?', toFolder: '📁 Папкаға оралу',
+      folderInSum: '«{name}» папкасының өтінімі — бүкіл папкамен бірге жіберіледі.',
+      folderNoReady: 'Папкада дайын өтінім жоқ: әрқайсысын қорытындыға дейін жеткізіңіз.',
+      folderDrafts: 'Толтырылмаған өтінімдер: {n}. Олар хатқа кірмейді. Қалғандарын ({m}) жіберу керек пе?',
+      folderSendShort: 'Жіберу', folderMailOk: '«{name}» папкасы ({n} өтінім) бір Excel-файлмен {to} поштасына жіберілді.',
+      folderAgain: 'Бұл папка поштаға жіберіліп қойған. Тағы жіберу керек пе?', continueFolder: 'Папканы жалғастыру',
+      folderTile: '{n} / {max} өтінім', folderSent: 'Жіберілді',
       profileTitle: 'Танысып алайық',
       profileHint: 'Бір рет қана — әрі қарай әр өтінімге өзі қойылады.',
       profileIncomplete: 'Деректерді толықтырыңыз: енді аты-жөні, телефон және қала керек.',
@@ -512,7 +546,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       namePh: 'Мысалы, Айгерим Нурланова', phonePh: '+7 7XX XXX XX XX',
       errName: 'Атыңыз бен тегіңізді жазыңыз', errPhone: 'Телефон нөмірі +7 7XX XXX XX XX түрінде', errCity: 'Қаланы таңдаңыз',
       exampleTitle: 'Өтінім үлгісі',
-      exampleText: '«Алматы қаласы, Тастак базары, клиент Утебаев, телефоны +7 701 123 45 67. Баннерді ауыстыру керек. Бренд Alina Paint, өлшемі 2-ге 1,5 метр. Баннердің дизайнын да жаңарту керек»',
+      exampleText: '«Алматы қаласы, Тастак базары, клиент Утебаев, телефоны +7 701 123 45 67. Баннерді ауыстыру керек. Бренд Alina Paint, өлшемі 2-ге 1,5 метр, екі баннер. Баннердің дизайнын да жаңарту керек»',
       f_address: 'Нақты мекенжай', f_addressPh: 'Көше, үй, қатар, бутик немесе бағдар',
       f_client: 'Клиент / байланыс тұлғасы', f_clientPh: 'Мысалы, Утебаев',
       f_clientPhone: 'Клиенттің телефоны',
@@ -559,7 +593,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
       textTitle: 'Мәтін және безендіру', textHint: 'Көмекші қолынан келгенін толтырды — тексеріп, түзетіңіз.',
       f_title: 'Өтінім атауы', f_point: 'Нүкте', f_problem: 'Не болды',
       f_todo: 'Не істеу керек', f_kind: 'Жұмыс түрі', f_brands: 'Бренд',
-      f_urgency: 'Шұғылдығы', f_size: 'Өлшемдері', f_layoutText: 'Макеттегі мәтін',
+      f_urgency: 'Шұғылдығы', f_size: 'Өлшемдері', f_qty: 'Баннерлер саны', f_qtyPh: 'Мысалы, 2',
+      errQty: 'Баннерлер санын жазыңыз — 1-ден 99-ға дейін', f_layoutText: 'Макеттегі мәтін',
       f_designWishes: 'Безендіру бойынша тілектер', f_author: 'Кім береді',
       f_pointPh: 'Базар, СО немесе дүкен — мысалы, Тастак базары', f_sizePh: 'Ені × биіктігі, мысалы 3 × 1 м',
       f_layoutPh: 'Не жазылуы керек, орысша және қазақша',
@@ -597,9 +632,11 @@ textarea.inp { min-height: 84px; resize: vertical; }
   var S = {
     lang: 'ru',
     profile: null,
-    screen: 'home',      // home | profile | wizard | list
+    screen: 'home',      // home | profile | wizard | list | folder
     cur: null,           // открытая заявка
-    list: [],
+    list: [],            // заявки (вместе с заявками папок)
+    folders: [],
+    folder: null,        // открытая папка
     aiReady: true,
     voice: true,
     micFailed: false,
@@ -621,18 +658,20 @@ textarea.inp { min-height: 84px; resize: vertical; }
   // IndexedDB (с запасным хранением в памяти)
   // -------------------------------------------------------------------------
   var db = null;
-  var mem = {requests: {}, meta: {}};
+  var mem = {requests: {}, meta: {}, folders: {}};
   var persistent = false;
 
   function idbOpen() {
     return new Promise(function (resolve) {
       var done = function () { resolve(); };
       try {
-        var rq = indexedDB.open('zayavki-s-tochek', 1);
+        // 2 — добавлены папки заявок.
+        var rq = indexedDB.open('zayavki-s-tochek', 2);
         rq.onupgradeneeded = function () {
           var d = rq.result;
           if (!d.objectStoreNames.contains('requests')) d.createObjectStore('requests', {keyPath: 'id'});
           if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', {keyPath: 'k'});
+          if (!d.objectStoreNames.contains('folders')) d.createObjectStore('folders', {keyPath: 'id'});
         };
         rq.onsuccess = function () { db = rq.result; persistent = true; done(); };
         rq.onerror = done;
@@ -873,6 +912,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
     var html = header() + '<main class="wrap">';
     if (S.screen === 'profile') html += viewProfile();
     else if (S.screen === 'list') html += viewList();
+    else if (S.screen === 'folder' && S.folder) html += viewFolder();
     else if (S.screen === 'wizard' && S.cur) html += viewWizard();
     else html += viewHome();
     html += '</main>';
@@ -884,7 +924,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
   }
 
   function viewHome() {
-    var drafts = S.list.filter(function (r) { return r.status === 'draft'; });
+    var drafts = S.list.filter(function (r) { return r.status === 'draft' && !r.folderId; });
+    var openFolders = S.folders.filter(function (f) { return f.status !== 'sent'; });
     var p = S.profile || {};
     var h = '<h1>' + esc(t('hello')) + (p.name ? ', ' + esc(p.name) : '') + '!</h1>';
     if (!persistent) h += '<div class="note warn">' + esc(t('noStorage')) + '</div>';
@@ -905,8 +946,14 @@ textarea.inp { min-height: 84px; resize: vertical; }
         esc(t('continueDraft')) + '</b><span>' + esc(d.fields.title || d.fields.point || fmtDate(d.updatedAt)) +
         '</span></div></button>';
     }
+    if (openFolders.length) {
+      var of = openFolders[0];
+      h += '<button class="tile" data-act="folder-open" data-id="' + esc(of.id) + '"><span class="ico">📁</span><div><b>' +
+        esc(t('continueFolder')) + '</b><span>' + esc(of.name) + ' · ' + esc(folderTileText(of)) + '</span></div></button>';
+    }
+    var shown = S.list.filter(function (r) { return !r.folderId; }).length + S.folders.length;
     h += '<button class="tile" data-act="list"><span class="ico">📂</span><div><b>' + esc(t('myReqs')) +
-      '</b><span>' + esc(t('myReqsHint')) + '</span></div><span class="count">' + S.list.length + '</span></button>';
+      '</b><span>' + esc(t('myReqsHint')) + '</span></div><span class="count">' + shown + '</span></button>';
     if (p.name) {
       h += '<div class="who">' + esc(p.name) + (p.city ? ' · ' + esc(p.city) : '') +
         ' · <button data-act="profile">' + esc(t('editProfile')) + '</button></div>';
@@ -960,16 +1007,57 @@ textarea.inp { min-height: 84px; resize: vertical; }
       '</div></button>';
   }
 
+  function folderTileText(f) {
+    return t('folderTile').replace('{n}', folderItems(f.id).length).replace('{max}', MAX_IN_FOLDER);
+  }
+
+  function folderHtml(f) {
+    return '<button class="item folder-item" data-act="folder-open" data-id="' + esc(f.id) + '">' +
+      '<div class="item-top"><span>📁 ' + esc(t('folder')) + '</span><span>' + fmtDate(f.updatedAt) + '</span></div>' +
+      '<b>' + esc(f.name) + '</b><div class="meta">' + esc(folderTileText(f)) + '</div>' +
+      '<div class="badges"><span class="badge st-' + (f.status === 'sent' ? 'sent' : 'draft') + '">' +
+      esc(f.status === 'sent' ? t('folderSent') : t('st_draft')) + '</span></div></button>';
+  }
+
   function viewList() {
     var h = '<h1>' + esc(t('myReqs')) + '</h1>';
-    if (!S.list.length) {
+    var single = S.list.filter(function (r) { return !r.folderId; });
+    if (!single.length && !S.folders.length) {
       h += '<div class="empty">📭<br>' + esc(t('empty')) + '</div>';
     } else {
-      S.list.forEach(function (r) { h += itemHtml(r); });
+      S.folders.forEach(function (f) { h += folderHtml(f); });
+      single.forEach(function (r) { h += itemHtml(r); });
     }
     h += '<div class="storage" id="storage"></div>';
-    if (S.list.length) h += '<button class="btn danger block" data-act="clear">' + esc(t('clearAll')) + '</button>';
+    if (S.list.length || S.folders.length) {
+      h += '<button class="btn danger block" data-act="clear">' + esc(t('clearAll')) + '</button>';
+    }
     h += '<button class="btn ghost block" data-act="home">' + esc(t('home')) + '</button>';
+    return h;
+  }
+
+  function viewFolder() {
+    var f = S.folder;
+    var items = folderItems(f.id);
+    var full = items.length >= MAX_IN_FOLDER;
+    var h = '<div class="step-name">📁 ' + esc(t('folder')) + '</div><h1>' + esc(f.name) + '</h1>' +
+      '<p class="sub">' + esc(t('folderCount').replace('{n}', items.length).replace('{max}', MAX_IN_FOLDER)) +
+      ' · <button class="link-btn" data-act="folder-rename">' + esc(t('rename')) + '</button></p>';
+    if (f.status === 'sent') {
+      h += '<div class="note ok">✅ ' + esc(t('folderSent')) + ' ' + fmtDate(f.sentAt) + '</div>';
+    }
+    if (!items.length) h += '<div class="empty">📭<br>' + esc(t('folderEmpty')) + '</div>';
+    items.forEach(function (r) { h += itemHtml(r); });
+    h += '<button class="btn primary block" data-act="folder-add"' + (full ? ' disabled' : '') + '>' +
+      esc(t('folderAdd')) + '</button>';
+    if (full) h += '<div class="hint" style="text-align:center">' + esc(t('folderFull')) + '</div>';
+    if (items.length) {
+      h += '<div class="btn-row" style="margin-top:12px"><button class="btn primary" data-act="folder-send">' +
+        esc(t('folderSend')) + '</button><button class="btn" data-act="folder-dl">' + esc(t('folderDl')) + '</button></div>';
+    }
+    h += '<div style="text-align:center;margin-top:24px"><button class="link-btn" style="color:var(--critical)" ' +
+      'data-act="folder-del">' + esc(t('folderDel')) + '</button></div>' +
+      '<button class="btn ghost block" data-act="home">' + esc(t('home')) + '</button>';
     return h;
   }
 
@@ -1105,7 +1193,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
     var v = S.cur.fields[key] || '';
     var label = '<label for="f-' + key + '">' + esc(t('f_' + key)) + (opts.req ? ' <span class="req">*</span>' : '') + '</label>';
     var ph = opts.ph ? ' placeholder="' + esc(t(opts.ph)) + '"' : '';
-    var tel = opts.tel ? ' type="tel" inputmode="tel"' : '';
+    var tel = opts.tel ? ' type="tel" inputmode="tel"' : opts.num ? ' inputmode="numeric" pattern="[0-9]*" maxlength="2"' : '';
     var ctl = opts.area
       ? '<textarea class="inp" id="f-' + key + '" data-f="' + key + '"' + ph + '>' + esc(v) + '</textarea>'
       : '<input class="inp" id="f-' + key + '" data-f="' + key + '"' + ph + tel + ' value="' + esc(v) + '">';
@@ -1171,6 +1259,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
     });
     h += '</div></div>';
     h += fieldInput('size', {req: true, ph: 'f_sizePh'});
+    h += fieldInput('qty', {req: true, ph: 'f_qtyPh', num: true});
     if (hasDesign(r.route)) {
       h += fieldInput('layoutText', {area: true, ph: 'f_layoutPh'});
       h += fieldInput('designWishes', {area: true, ph: 'f_wishesPh'});
@@ -1200,7 +1289,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
       ['td', dict.f_todo, f.todo],
       ['k', dict.f_kind, f.kind],
       ['b', dict.f_brands, f.noBrand ? dict.noBrand : (f.brands || []).join(', ')],
-      ['s', dict.f_size, f.size]
+      ['s', dict.f_size, f.size],
+      ['q', dict.f_qty, f.qty ? String(f.qty) : '']
     ];
     if (hasDesign(r.route)) {
       rows.push(['lt', dict.f_layoutText, f.layoutText]);
@@ -1236,9 +1326,15 @@ textarea.inp { min-height: 84px; resize: vertical; }
       h += '</div>';
     }
     h += '</div>';
-    h += '<div class="btn-row"><button class="btn primary" data-act="share">' + esc(t('share')) + '</button>' +
-      '<button class="btn" data-act="download">' + esc(t('download')) + '</button></div>';
-    if (S.lastDl) h += '<button class="link-btn" data-act="drive-dl">' + esc(t('viaDrive')) + '</button>';
+    if (r.folderId) {
+      // Заявку из папки отправляют вместе со всей папкой.
+      h += '<div class="note">' + esc(t('folderInSum').replace('{name}', r.folderName || '')) + '</div>' +
+        '<button class="btn primary block" data-act="finish">' + esc(t('toFolder')) + '</button>';
+    } else {
+      h += '<div class="btn-row"><button class="btn primary" data-act="share">' + esc(t('share')) + '</button>' +
+        '<button class="btn" data-act="download">' + esc(t('download')) + '</button></div>';
+      if (S.lastDl) h += '<button class="link-btn" data-act="drive-dl">' + esc(t('viaDrive')) + '</button>';
+    }
     h += '<div style="text-align:center;margin-top:24px"><button class="link-btn" style="color:var(--critical)" data-act="del">' +
       esc(t('del')) + '</button></div>';
     return h;
@@ -1248,16 +1344,82 @@ textarea.inp { min-height: 84px; resize: vertical; }
   // Заявки: создание, открытие, переходы
   // -------------------------------------------------------------------------
   function refreshList() {
-    return dbAll('requests').then(function (all) {
-      all.sort(function (a, b) { return b.updatedAt - a.updatedAt; });
-      S.list = all;
+    return Promise.all([dbAll('requests'), dbAll('folders')]).then(function (res) {
+      res[0].sort(function (a, b) { return b.updatedAt - a.updatedAt; });
+      res[1].sort(function (a, b) { return b.updatedAt - a.updatedAt; });
+      S.list = res[0];
+      S.folders = res[1];
     });
   }
 
-  function newRequest() {
+  function folderItems(fid) {
+    return S.list.filter(function (r) { return r.folderId === fid; })
+      .sort(function (a, b) { return a.createdAt - b.createdAt; });
+  }
+
+  // «Новая заявка» → одна заявка или папка до 15 заявок.
+  function chooseMode() {
+    if (!profileComplete(S.profile)) { S.afterProfile = 'new'; S.screen = 'profile'; render(); return; }
+    modal('<h2>' + esc(t('modeTitle')) + '</h2>' +
+      '<button class="tile mode" data-act="mode-one"><div><b>' + esc(t('modeOne')) + '</b><span>' +
+      esc(t('modeOneHint')) + '</span></div></button>' +
+      '<button class="tile mode" data-act="mode-many"><div><b>' + esc(t('modeMany')) + '</b><span>' +
+      esc(t('modeManyHint')) + '</span></div></button>' +
+      '<button class="btn ghost block" data-act="modal-close">' + esc(t('cancel')) + '</button>');
+  }
+
+  // Название папки: новой (folder = null) или переименование.
+  function askFolderName(folder) {
+    modal('<h2>' + esc(t('folderNameTitle')) + '</h2>' +
+      '<input class="inp" id="folder-name" maxlength="60" placeholder="' + esc(t('folderNamePh')) + '" value="' +
+      esc(folder ? folder.name : '') + '">' +
+      '<div class="hint err-hint" id="folder-name-err" hidden>' + esc(t('folderNameErr')) + '</div>' +
+      '<button class="btn primary block" data-act="folder-name-ok">' + esc(folder ? t('save') : t('create')) + '</button>' +
+      '<button class="btn ghost block" data-act="modal-close">' + esc(t('cancel')) + '</button>');
+    var inp = document.getElementById('folder-name');
+    if (inp) inp.focus();
+  }
+
+  function folderNameOk() {
+    var inp = document.getElementById('folder-name');
+    var name = inp ? inp.value.replace(/\s+/g, ' ').trim() : '';
+    if (!name) {
+      document.getElementById('folder-name-err').hidden = false;
+      inp.classList.add('bad');
+      return;
+    }
+    var now = Date.now();
+    var f = S.screen === 'folder' && S.folder ? S.folder
+      : {id: 'F-' + uid(), createdAt: now, status: 'open', mailCount: 0};
+    f.name = name;
+    f.updatedAt = now;
+    modal(null);
+    // Имя папки — и в её заявках (журнал, письмо).
+    var updates = folderItems(f.id).map(function (r) { r.folderName = name; return dbPut('requests', r); });
+    Promise.all(updates.concat([dbPut('folders', f)])).then(function () { openFolder(f.id); });
+  }
+
+  function openFolder(fid) {
+    stopRec(true);
+    S.cur = null;
+    dropUrls();
+    refreshList().then(function () {
+      S.folder = S.folders.filter(function (f) { return f.id === fid; })[0] || null;
+      S.screen = S.folder ? 'folder' : 'home';
+      render();
+    });
+  }
+
+  function touchFolder(f) {
+    f.updatedAt = Date.now();
+    return dbPut('folders', f);
+  }
+
+  function newRequest(folder) {
     if (!profileComplete(S.profile)) { S.afterProfile = 'new'; S.screen = 'profile'; render(); return; }
     var now = Date.now();
     S.cur = {
+      folderId: folder ? folder.id : '', folderName: folder ? folder.name : '',
       id: uid(), createdAt: now, updatedAt: now, status: 'draft', step: 0,
       number: '', route: ROUTE, aiDone: false, rejected: false,
       chat: [{role: 'model', text: t('greet'), local: true}],
@@ -1272,6 +1434,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
     S.lastDl = false;
     S.screen = 'wizard';
     saveNow();
+    if (folder) touchFolder(folder);
     render();
   }
 
@@ -1295,6 +1458,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       !r.fields.title && !r.fields.point && !r.fields.problem;
   }
 
+  // Из заявки папки — назад в папку, иначе на главную.
   function goHome() {
     stopRec(true);
     var r = S.cur;
@@ -1302,6 +1466,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
     if (r) p = isEmptyDraft(r) ? dbDel('requests', r.id) : saveNow();
     S.cur = null;
     dropUrls();
+    if (r && r.folderId) return p.then(function () { openFolder(r.folderId); });
+    S.folder = null;
     return p.then(refreshList).then(function () { S.screen = 'home'; render(); });
   }
 
@@ -1330,12 +1496,21 @@ textarea.inp { min-height: 84px; resize: vertical; }
         bad.push('f-clientPhone');
       }
     }
+    // Количество — целое 1–99; «2 шт» тоже примем.
+    var qty = parseInt(String(f.qty === undefined ? '' : f.qty).replace(/\D+/g, ''), 10);
+    var qtyBad = !(qty >= 1 && qty <= 99);
+    if (qtyBad) {
+      bad.push('f-qty');
+    } else {
+      f.qty = qty;
+      document.getElementById('f-qty').value = qty;
+    }
     var brandOk = f.noBrand || (f.brands && f.brands.length);
     bad.forEach(function (id) { document.getElementById(id).classList.add('bad'); });
     if (!brandOk) document.getElementById('brands').classList.add('bad');
     if (bad.length) {
       document.getElementById(bad[0]).scrollIntoView({block: 'center'});
-      toast(phoneBad && bad.length === 1 ? t('errPhone') : t('required'));
+      toast(bad.length === 1 && phoneBad ? t('errPhone') : bad.length === 1 && qtyBad ? t('errQty') : t('required'));
       return false;
     }
     if (!brandOk) {
@@ -1878,7 +2053,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
   // могла отличить старые файлы от новых. Новые колонки — только в конец.
   // -------------------------------------------------------------------------
   // 2 — добавлены точный адрес, координаты, ссылка 2GIS и клиент (в конец).
-  var FORMAT_VERSION = 2;
+  // 3 — добавлено количество баннеров (в конец).
+  var FORMAT_VERSION = 3;
 
   // Дата как её видят в Казахстане: ExcelJS пишет даты по UTC, поэтому
   // сдвигаем на смещение часового пояса телефона.
@@ -1924,7 +2100,9 @@ textarea.inp { min-height: 84px; resize: vertical; }
     ['Долгота', function (r) { return r.fields.lon === undefined ? '' : r.fields.lon; }, '0.000000'],
     ['Ссылка 2GIS', function (r) { return r.fields.mapUrl; }],
     ['Клиент', function (r) { return r.fields.client; }],
-    ['Телефон клиента', function (r) { return r.fields.clientPhone; }, '@']
+    ['Телефон клиента', function (r) { return r.fields.clientPhone; }, '@'],
+    // --- формат 3 ---
+    ['Количество баннеров', function (r) { return Number(r.fields.qty) || ''; }]
   ];
 
   function addDataSheet(wb, r) {
@@ -2115,6 +2293,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       f.address ? 'Адрес: ' + f.address : '',
       f.mapUrl ? '2GIS: ' + f.mapUrl : '',
       f.title || f.problem,
+      [f.size ? 'Размеры: ' + f.size : '', f.qty ? 'Баннеров: ' + f.qty : ''].filter(Boolean).join(' · '),
       f.client ? 'Клиент: ' + [f.client, f.clientPhone].filter(Boolean).join(', ') : '',
       'Срочность: ' + RU['u_' + (f.urgency || 'normal')],
       'Подал: ' + [r.author.name, r.author.phone].filter(Boolean).join(', ')
@@ -2151,8 +2330,214 @@ textarea.inp { min-height: 84px; resize: vertical; }
       name: r.author.name, phone: r.author.phone, photos: r.photos.length,
       turns: r.chat.filter(function (m) { return m.role === 'user'; }).length,
       address: f.address, client: f.client, clientPhone: f.clientPhone, map: f.mapUrl,
-      userId: S.userId
+      userId: S.userId, qty: f.qty, folder: r.folderName || ''
     }).catch(function (e) { console.warn('logRequest', e); });
+  }
+
+  // -------------------------------------------------------------------------
+  // Папка: общий Excel (один лист, строка = заявка, миниатюры фото в конце
+  // строки) и отправка одним письмом
+  // -------------------------------------------------------------------------
+  function plural(n, one, few, many) {
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+    return many;
+  }
+  function reqCount(n) { return n + ' ' + plural(n, 'заявка', 'заявки', 'заявок'); }
+
+  // Миниатюра фото (с отметками) ~240 px — чтобы 15 заявок по 10 фото
+  // уместились в письмо.
+  function thumbB64(p) {
+    return new Promise(function (resolve) {
+      var url = URL.createObjectURL(new Blob([p.buf], {type: p.type}));
+      var img = new Image();
+      img.onload = function () {
+        var k = Math.min(1, 240 / Math.max(img.naturalWidth, img.naturalHeight));
+        var c = document.createElement('canvas');
+        c.width = Math.round(img.naturalWidth * k);
+        c.height = Math.round(img.naturalHeight * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        resolve({b64: c.toDataURL('image/jpeg', 0.7), w: c.width, h: c.height});
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
+  }
+
+  function folderXlsxName(f) {
+    return ('Папка_' + f.name).replace(/[\\\/:*?"<>|\s]+/g, '_').slice(0, 120) + '.xlsx';
+  }
+
+  var WIDE_COLUMNS = {'Название заявки': 30, 'Что случилось': 34, 'Что нужно сделать': 34, 'Точный адрес': 30,
+    'Точка / адрес': 24, 'Текст на макете': 28, 'Пожелания по оформлению': 28, 'Ссылка 2GIS': 26};
+
+  function buildFolderXlsx(f, list) {
+    var thumbs;
+    return loadExcelJS().then(function () {
+      return Promise.all(list.map(function (r) { return Promise.all(r.photos.map(thumbB64)); }));
+    }).then(function (res) {
+      thumbs = res.map(function (x) { return x.filter(Boolean); });
+      var wb = new ExcelJS.Workbook();
+      wb.creator = 'Заявки с точек';
+      wb.created = new Date();
+      var ws = wb.addWorksheet('Заявки', {views: [{state: 'frozen', xSplit: 1, ySplit: 3}]});
+      var nc = DATA_COLUMNS.length;
+      var maxPh = Math.max(1, Math.max.apply(null, thumbs.map(function (x) { return x.length; })));
+      ws.columns = DATA_COLUMNS.map(function (c) {
+        return {width: WIDE_COLUMNS[c[0]] || Math.max(14, Math.min(24, c[0].length + 4))};
+      }).concat(Array.apply(null, Array(maxPh)).map(function () { return {width: 18}; }));
+
+      // Логотип — в колонке A, заголовок правее, чтобы не наезжали друг на друга.
+      ws.getCell('B1').value = 'Папка «' + f.name + '» · ' + reqCount(list.length);
+      ws.getCell('B1').font = {size: 16, bold: true};
+      ws.getRow(1).height = 30;
+      ws.getCell('B2').value = 'Собрано ' + fmtDate(Date.now()) + ' · Заявки с точек · Alina Group';
+      ws.getCell('B2').font = {size: 10, color: {argb: 'FF63707F'}};
+      var logoId = wb.addImage({base64: LOGO, extension: 'png'});
+      ws.addImage(logoId, {tl: {col: 0.05, row: 0.15}, ext: {width: 105, height: 35}});
+
+      var border = {style: 'thin', color: {argb: 'FFD5DBE5'}};
+      var box = {top: border, left: border, bottom: border, right: border};
+      var head = ws.getRow(3);
+      DATA_COLUMNS.forEach(function (c, i) { head.getCell(i + 1).value = c[0]; });
+      head.getCell(nc + 1).value = 'Фото (с отметками)';
+      if (maxPh > 1) ws.mergeCells(3, nc + 1, 3, nc + maxPh);
+      head.font = {bold: true, color: {argb: 'FF4A5A70'}};
+      head.alignment = {vertical: 'middle', wrapText: true};
+      head.height = 32;
+      for (var hc = 1; hc <= nc + maxPh; hc++) {
+        head.getCell(hc).fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFF2F4F7'}};
+        head.getCell(hc).border = box;
+      }
+
+      var mapCol = DATA_COLUMNS.map(function (c) { return c[0]; }).indexOf('Ссылка 2GIS') + 1;
+      list.forEach(function (r, i) {
+        var rowNo = 4 + i;
+        var row = ws.getRow(rowNo);
+        DATA_COLUMNS.forEach(function (c, j) {
+          var v = c[1](r);
+          var cell = row.getCell(j + 1);
+          cell.value = v === undefined || v === null ? '' : v;
+          if (c[2]) cell.numFmt = c[2];
+          cell.border = box;
+        });
+        if (mapCol && r.fields.mapUrl) {
+          row.getCell(mapCol).value = {text: 'Открыть в 2GIS', hyperlink: r.fields.mapUrl};
+          row.getCell(mapCol).font = {color: {argb: 'FF1F5FD0'}, underline: true};
+        }
+        row.alignment = {vertical: 'top', wrapText: true};
+        var ph = thumbs[i];
+        // Миниатюра 120 px в клетке 18 знаков (~130 px) и строке 100 pt (~133 px).
+        row.height = ph.length ? 100 : Math.max(30, rowHeight(r.fields.problem || '', 34));
+        ph.forEach(function (th, j) {
+          var k = Math.min(120 / th.w, 120 / th.h);
+          var id = wb.addImage({base64: th.b64, extension: 'jpeg'});
+          ws.addImage(id, {tl: {col: nc + j + 0.05, row: rowNo - 1 + 0.05},
+            ext: {width: Math.round(th.w * k), height: Math.round(th.h * k)}});
+        });
+        for (var q = 0; q < maxPh; q++) row.getCell(nc + 1 + q).border = box;
+      });
+      ws.autoFilter = {from: {row: 3, column: 1}, to: {row: 3 + list.length, column: nc}};
+      return wb.xlsx.writeBuffer();
+    }).then(toArrayBuffer);
+  }
+
+  function readyItems(f) {
+    return folderItems(f.id).filter(function (r) { return r.status !== 'draft'; });
+  }
+
+  function downloadFolder(f) {
+    var list = readyItems(f);
+    if (!list.length) { toast(t('folderNoReady')); return; }
+    busy(t('building'));
+    buildFolderXlsx(f, list).then(function (buf) {
+      busy(null);
+      var file = new File([buf], folderXlsxName(f), {type: XLSX_MIME});
+      if (IS_IOS && navigator.canShare && navigator.canShare({files: [file]})) {
+        navigator.share({files: [file]}).catch(function (e) { console.warn('share', e); });
+        return;
+      }
+      var url = URL.createObjectURL(file);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 4000);
+    }).catch(function (e) {
+      busy(null);
+      toast(e.message || String(e));
+    });
+  }
+
+  function folderMailText(f, list, link) {
+    var lines = ['Папка «' + f.name + '» — ' + reqCount(list.length), ''];
+    list.forEach(function (r, i) {
+      var x = r.fields;
+      lines.push((i + 1) + '. ' + r.number + ' · ' + [x.city, x.point].filter(Boolean).join(', ') +
+        (x.title ? ' · ' + x.title : '') + (x.size ? ' · ' + x.size : '') + (x.qty ? ' · ' + x.qty + ' шт.' : ''));
+    });
+    var a = list[0].author || {};
+    lines.push('', 'Подал: ' + [a.name, a.phone].filter(Boolean).join(', '));
+    if (link) lines.push('Файл: ' + link);
+    return lines.join('\n');
+  }
+
+  function sendFolderMail(f) {
+    var items = folderItems(f.id);
+    var ready = readyItems(f);
+    if (!ready.length) { toast(t('folderNoReady')); return; }
+    var drafts = items.length - ready.length;
+    var p = f.status === 'sent' ? ask(t('folderAgain'), t('sendAgain')) : Promise.resolve(true);
+    p.then(function (ok) {
+      if (!ok) return false;
+      if (!drafts) return true;
+      return ask(t('folderDrafts').replace('{n}', drafts).replace('{m}', ready.length), t('folderSendShort'));
+    }).then(function (ok) { if (ok) doSendFolder(f, ready); });
+  }
+
+  function doSendFolder(f, ready) {
+    var up;
+    busy(t('building'));
+    buildFolderXlsx(f, ready).then(function (buf) {
+      busy(t('uploading'));
+      return server('saveXlsx', abToB64(buf), folderXlsxName(f), {folder: f.name});
+    }).then(function (res) {
+      if (!res || !res.ok) throw new Error(res && res.error || t('errNet'));
+      up = res;
+      busy(t('mailing'));
+      return server('mailRequest', {
+        number: 'Папка «' + f.name + '»', key: f.id, fileId: res.id,
+        title: reqCount(ready.length), text: folderMailText(f, ready, res.url), photos: []
+      });
+    }).then(function (res) {
+      busy(null);
+      if (!res || !res.ok) throw new Error(res && res.error || t('errNet'));
+      var now = Date.now();
+      f.status = 'sent';
+      f.sentAt = now;
+      f.mailCount = (f.mailCount || 0) + 1;
+      f.driveId = up.id;
+      f.driveUrl = up.url;
+      return Promise.all(ready.map(function (r) {
+        if (r.status === 'sent') return null;
+        r.status = 'sent';
+        r.sentAt = now;
+        r.mailedTo = res.to;
+        logToServer(r);
+        return dbPut('requests', r);
+      }).concat([touchFolder(f)])).then(function () {
+        openFolder(f.id);
+        modal('<h2>✅ ' + esc(t('mailOkTitle')) + '</h2><p>' + esc(t('folderMailOk').replace('{name}', f.name)
+          .replace('{n}', ready.length).replace('{to}', res.to)) + '</p>' +
+          '<button class="btn primary block" data-act="modal-close">' + esc(t('close')) + '</button>');
+      });
+    }).catch(function (e) {
+      busy(null);
+      toast('⚠️ ' + (e && e.message || t('errNet')));
+    });
   }
 
   // «Отправить на почту»: файл кладём на Google Диск (ссылка попадёт в
@@ -2225,7 +2610,26 @@ textarea.inp { min-height: 84px; resize: vertical; }
         render();
         break;
       case 'home': goHome(); break;
-      case 'new': newRequest(); break;
+      case 'new': chooseMode(); break;
+      case 'mode-one': modal(null); newRequest(); break;
+      case 'mode-many': askFolderName(null); break;
+      case 'folder-name-ok': folderNameOk(); break;
+      case 'folder-open': openFolder(el.getAttribute('data-id')); break;
+      case 'folder-rename': askFolderName(S.folder); break;
+      case 'folder-add':
+        if (folderItems(S.folder.id).length >= MAX_IN_FOLDER) { toast(t('folderFull')); break; }
+        newRequest(S.folder);
+        break;
+      case 'folder-send': sendFolderMail(S.folder); break;
+      case 'folder-dl': downloadFolder(S.folder); break;
+      case 'folder-del':
+        ask(t('folderDelConfirm')).then(function (ok) {
+          if (!ok) return;
+          var f = S.folder;
+          Promise.all(folderItems(f.id).map(function (x) { return dbDel('requests', x.id); })
+            .concat([dbDel('folders', f.id)])).then(goHome);
+        });
+        break;
       case 'list': refreshList().then(function () { S.screen = 'list'; render(); }); break;
       case 'open': openRequest(el.getAttribute('data-id')); break;
       case 'profile': S.screen = 'profile'; render(); break;
@@ -2315,13 +2719,16 @@ textarea.inp { min-height: 84px; resize: vertical; }
       case 'del':
         ask(t('delConfirm')).then(function (ok) {
           if (!ok) return;
-          dbDel('requests', r.id).then(function () { S.cur = null; goHome(); });
+          dbDel('requests', r.id).then(function () {
+            S.cur = null;
+            if (r.folderId) openFolder(r.folderId); else goHome();
+          });
         });
         break;
       case 'clear':
         ask(t('clearConfirm'), t('clearAll')).then(function (ok) {
           if (!ok) return;
-          dbClear('requests').then(function () {
+          Promise.all([dbClear('requests'), dbClear('folders')]).then(function () {
             dropUrls();
             return refreshList();
           }).then(render);
@@ -2377,6 +2784,10 @@ textarea.inp { min-height: 84px; resize: vertical; }
       e.preventDefault();
       sendText();
     }
+    if (e.key === 'Enter' && e.target.id === 'folder-name') {
+      e.preventDefault();
+      folderNameOk();
+    }
     if (e.key === 'Enter' && e.target.id === 'map-q') {
       e.preventDefault();
       mapFind();
@@ -2407,7 +2818,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
     S.profile = {k: 'profile', name: name, phone: phone, city: city, synced: false};
     dbPut('meta', S.profile).then(function () {
       syncProfile();
-      if (S.afterProfile === 'new') { S.afterProfile = null; newRequest(); return; }
+      if (S.afterProfile === 'new') { S.afterProfile = null; S.screen = 'home'; render(); chooseMode(); return; }
       S.screen = 'home';
       render();
     });
@@ -2718,7 +3129,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
 
   // Для проверки из консоли и тестов.
   window.__zt = {S: S, buildXlsx: buildXlsx, xlsxName: xlsxName, handleAudio: handleAudio,
-    DATA_COLUMNS: DATA_COLUMNS, FORMAT_VERSION: FORMAT_VERSION};
+    DATA_COLUMNS: DATA_COLUMNS, FORMAT_VERSION: FORMAT_VERSION, buildFolderXlsx: buildFolderXlsx,
+    dbPut: dbPut, openFolder: openFolder};
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
