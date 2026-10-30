@@ -295,6 +295,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
   padding: 13px 14px; margin-bottom: 8px; box-shadow: var(--shadow);
 }
 .folder-item { border-left: 4px solid var(--accent); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field-row .field { min-width: 0; }
 .modal .tile.mode { margin-top: 10px; width: 100%; text-align: left; }
 .modal .tile.mode b { font-size: 16px; }
 .btn[disabled] { opacity: .45; pointer-events: none; }
@@ -404,7 +406,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
   var URGENCY = ['urgent', 'normal', 'low'];
   var FIELDS_FROM_AI = ['city', 'point', 'problem', 'todo', 'title', 'brands',
     'client', 'clientPhone', 'address',
-    'urgency', 'size', 'qty', 'layoutText', 'designWishes'];
+    'urgency', 'sizeW', 'sizeH', 'qty', 'printAt', 'layoutText', 'designWishes'];
 
   // -------------------------------------------------------------------------
   // Тексты RU / KZ
@@ -488,7 +490,9 @@ textarea.inp { min-height: 84px; resize: vertical; }
       textTitle: 'Текст и оформление', textHint: 'Помощник уже заполнил что смог — проверьте и поправьте.',
       f_title: 'Название заявки', f_point: 'Точка', f_problem: 'Что случилось',
       f_todo: 'Что нужно сделать', f_kind: 'Вид работы', f_brands: 'Бренд',
-      f_urgency: 'Срочность', f_size: 'Размеры', f_qty: 'Количество баннеров', f_qtyPh: 'Например, 2',
+      f_urgency: 'Срочность', f_size: 'Размер', f_sizeW: 'Длина, м', f_sizeH: 'Высота, м',
+      f_sizeWPh: 'Например, 3', f_sizeHPh: 'Например, 1,5', errSize: 'Укажите длину и высоту в метрах, например 3 и 1,5',
+      f_printAt: 'Где печатаются баннеры', f_printAtPh: 'Например, наш цех или типография — необязательно', f_qty: 'Количество баннеров', f_qtyPh: 'Например, 2',
       errQty: 'Укажите количество баннеров — число от 1 до 99', f_layoutText: 'Текст на макете',
       f_designWishes: 'Пожелания по оформлению', f_author: 'Кто подаёт',
       f_pointPh: 'Рынок, ТЦ или магазин — например, рынок Тастак', f_sizePh: 'Ширина × высота, например 3 × 1 м',
@@ -593,7 +597,9 @@ textarea.inp { min-height: 84px; resize: vertical; }
       textTitle: 'Мәтін және безендіру', textHint: 'Көмекші қолынан келгенін толтырды — тексеріп, түзетіңіз.',
       f_title: 'Өтінім атауы', f_point: 'Нүкте', f_problem: 'Не болды',
       f_todo: 'Не істеу керек', f_kind: 'Жұмыс түрі', f_brands: 'Бренд',
-      f_urgency: 'Шұғылдығы', f_size: 'Өлшемдері', f_qty: 'Баннерлер саны', f_qtyPh: 'Мысалы, 2',
+      f_urgency: 'Шұғылдығы', f_size: 'Өлшемі', f_sizeW: 'Ұзындығы, м', f_sizeH: 'Биіктігі, м',
+      f_sizeWPh: 'Мысалы, 3', f_sizeHPh: 'Мысалы, 1,5', errSize: 'Ұзындығы мен биіктігін метрмен жазыңыз, мысалы 3 және 1,5',
+      f_printAt: 'Баннерлер қайда басылады', f_printAtPh: 'Мысалы, өз цехымыз немесе баспахана — міндетті емес', f_qty: 'Баннерлер саны', f_qtyPh: 'Мысалы, 2',
       errQty: 'Баннерлер санын жазыңыз — 1-ден 99-ға дейін', f_layoutText: 'Макеттегі мәтін',
       f_designWishes: 'Безендіру бойынша тілектер', f_author: 'Кім береді',
       f_pointPh: 'Базар, СО немесе дүкен — мысалы, Тастак базары', f_sizePh: 'Ені × биіктігі, мысалы 3 × 1 м',
@@ -1191,9 +1197,11 @@ textarea.inp { min-height: 84px; resize: vertical; }
   function fieldInput(key, opts) {
     opts = opts || {};
     var v = S.cur.fields[key] || '';
+    if (opts.dec && typeof v === 'number') v = fmtM(v);
     var label = '<label for="f-' + key + '">' + esc(t('f_' + key)) + (opts.req ? ' <span class="req">*</span>' : '') + '</label>';
     var ph = opts.ph ? ' placeholder="' + esc(t(opts.ph)) + '"' : '';
-    var tel = opts.tel ? ' type="tel" inputmode="tel"' : opts.num ? ' inputmode="numeric" pattern="[0-9]*" maxlength="2"' : '';
+    var tel = opts.tel ? ' type="tel" inputmode="tel"' : opts.num ? ' inputmode="numeric" pattern="[0-9]*" maxlength="2"' :
+      opts.dec ? ' inputmode="decimal" maxlength="6"' : '';
     var ctl = opts.area
       ? '<textarea class="inp" id="f-' + key + '" data-f="' + key + '"' + ph + '>' + esc(v) + '</textarea>'
       : '<input class="inp" id="f-' + key + '" data-f="' + key + '"' + ph + tel + ' value="' + esc(v) + '">';
@@ -1258,8 +1266,10 @@ textarea.inp { min-height: 84px; resize: vertical; }
       h += '<button class="chip' + ((f.urgency || 'normal') === u ? ' on' : '') + '" data-act="urg" data-u="' + u + '">' + esc(t('u_' + u)) + '</button>';
     });
     h += '</div></div>';
-    h += fieldInput('size', {req: true, ph: 'f_sizePh'});
+    h += '<div class="field-row">' + fieldInput('sizeW', {req: true, ph: 'f_sizeWPh', dec: true}) +
+      fieldInput('sizeH', {req: true, ph: 'f_sizeHPh', dec: true}) + '</div>';
     h += fieldInput('qty', {req: true, ph: 'f_qtyPh', num: true});
+    h += fieldInput('printAt', {ph: 'f_printAtPh'});
     if (hasDesign(r.route)) {
       h += fieldInput('layoutText', {area: true, ph: 'f_layoutPh'});
       h += fieldInput('designWishes', {area: true, ph: 'f_wishesPh'});
@@ -1271,6 +1281,26 @@ textarea.inp { min-height: 84px; resize: vertical; }
       '<input class="inp" id="a-phone" type="tel" data-a="phone" value="' + esc(r.author.phone || '') + '"></div>';
     h += '</div>';
     return h;
+  }
+
+  // «1,5» / «1.5» / 1.5 → 1.5; пусто, 0 или больше 100 м → null.
+  function toMeters(v) {
+    var n = Number(String(v === undefined || v === null ? '' : v).replace(/\s+/g, '').replace(',', '.'));
+    return n > 0 && n <= 100 ? Math.round(n * 100) / 100 : null;
+  }
+  function fmtM(n) { return String(n).replace('.', ','); }
+  function sizeText(f) {
+    if (f.sizeW && f.sizeH) return fmtM(f.sizeW) + ' × ' + fmtM(f.sizeH) + ' м';
+    return f.size || '';
+  }
+  // Черновики до разделения размера: «3 × 2 м», «300 на 150 см» → длина и высота.
+  function splitOldSize(f) {
+    if (!f.size || (f.sizeW && f.sizeH)) return;
+    var m = String(f.size).toLowerCase().match(/(\d+(?:[.,]\d+)?)\s*(?:м|метр\S*)?\s*(?:на|x|х|×|\*)\s*(\d+(?:[.,]\d+)?)\s*(см)?/);
+    if (!m) return;
+    var k = m[3] ? 0.01 : 1;
+    f.sizeW = toMeters(Number(m[1].replace(',', '.')) * k);
+    f.sizeH = toMeters(Number(m[2].replace(',', '.')) * k);
   }
 
   function summaryRows(r, dict) {
@@ -1289,8 +1319,9 @@ textarea.inp { min-height: 84px; resize: vertical; }
       ['td', dict.f_todo, f.todo],
       ['k', dict.f_kind, f.kind],
       ['b', dict.f_brands, f.noBrand ? dict.noBrand : (f.brands || []).join(', ')],
-      ['s', dict.f_size, f.size],
-      ['q', dict.f_qty, f.qty ? String(f.qty) : '']
+      ['s', dict.f_size, sizeText(f)],
+      ['q', dict.f_qty, f.qty ? String(f.qty) : ''],
+      ['pa', dict.f_printAt, f.printAt]
     ];
     if (hasDesign(r.route)) {
       rows.push(['lt', dict.f_layoutText, f.layoutText]);
@@ -1441,6 +1472,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
   function openRequest(id) {
     dbGet('requests', id).then(function (r) {
       if (!r) return;
+      splitOldSize(r.fields);
       S.cur = r;
       S.chatError = '';
       S.lastDl = false;
@@ -1481,7 +1513,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
   function validateText() {
     var f = S.cur.fields;
     var bad = [];
-    ['title', 'city', 'point', 'address', 'client', 'clientPhone', 'problem', 'size'].forEach(function (k) {
+    ['title', 'city', 'point', 'address', 'client', 'clientPhone', 'problem'].forEach(function (k) {
       if (!String(f[k] || '').trim()) bad.push('f-' + k);
     });
     // Телефон клиента приводим к виду +7 XXX XXX XX XX; «уточнить» не принимаем.
@@ -1496,6 +1528,18 @@ textarea.inp { min-height: 84px; resize: vertical; }
         bad.push('f-clientPhone');
       }
     }
+    // Длина и высота — метры, 0 < x ≤ 100, запятая или точка.
+    var sizeBad = false;
+    ['sizeW', 'sizeH'].forEach(function (k) {
+      var v = toMeters(f[k]);
+      if (v === null) {
+        sizeBad = true;
+        bad.push('f-' + k);
+      } else {
+        f[k] = v;
+        document.getElementById('f-' + k).value = String(v).replace('.', ',');
+      }
+    });
     // Количество — целое 1–99; «2 шт» тоже примем.
     var qty = parseInt(String(f.qty === undefined ? '' : f.qty).replace(/\D+/g, ''), 10);
     var qtyBad = !(qty >= 1 && qty <= 99);
@@ -1510,7 +1554,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
     if (!brandOk) document.getElementById('brands').classList.add('bad');
     if (bad.length) {
       document.getElementById(bad[0]).scrollIntoView({block: 'center'});
-      toast(bad.length === 1 && phoneBad ? t('errPhone') : bad.length === 1 && qtyBad ? t('errQty') : t('required'));
+      var only = bad.length === 1 || (sizeBad && bad.length === 2 && bad[0] === 'f-sizeW' && bad[1] === 'f-sizeH');
+      toast(only && phoneBad ? t('errPhone') : only && qtyBad ? t('errQty') : only && sizeBad ? t('errSize') : t('required'));
       return false;
     }
     if (!brandOk) {
@@ -2046,167 +2091,36 @@ textarea.inp { min-height: 84px; resize: vertical; }
   }
 
   // -------------------------------------------------------------------------
-  // Лист «Данные» — для выгрузки во внешнюю систему.
-  // Строка 1 — заголовки, строка 2 — значения. Порядок и названия колонок
-  // постоянные: на них настроен импорт. Любая правка списка — только вместе
-  // с повышением FORMAT_VERSION (колонка «Версия формата»), чтобы система
-  // могла отличить старые файлы от новых. Новые колонки — только в конец.
+  // Excel, который уходит на почту: один лист «Заявки», строка = заявка.
+  // Колонки — ровно те, что попросил офис (+ номер и миниатюры фото).
+  // Одна заявка и папка собираются одинаково (buildTableXlsx).
   // -------------------------------------------------------------------------
-  // 2 — добавлены точный адрес, координаты, ссылка 2GIS и клиент (в конец).
-  // 3 — добавлено количество баннеров (в конец).
-  var FORMAT_VERSION = 3;
+  function brandsText(f) { return f.noBrand ? RU.noBrand : (f.brands || []).join(', '); }
 
-  // Дата как её видят в Казахстане: ExcelJS пишет даты по UTC, поэтому
-  // сдвигаем на смещение часового пояса телефона.
-  function localExcelDate(ms) {
-    return new Date(ms - new Date(ms).getTimezoneOffset() * 60000);
-  }
-  function isoLocal(ms) {
-    var d = new Date(ms);
-    var off = -d.getTimezoneOffset();
-    var sign = off >= 0 ? '+' : '-';
-    off = Math.abs(off);
-    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' +
-      pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()) +
-      sign + pad(Math.floor(off / 60)) + ':' + pad(off % 60);
+  // «Добавить надпись, изобразить…»: что сделать, текст на баннере, пожелания;
+  // если ничего из этого нет — «что случилось».
+  function descriptionText(f) {
+    var parts = [f.todo, f.layoutText ? 'Текст на баннере: ' + f.layoutText : '',
+      f.designWishes ? 'Пожелания: ' + f.designWishes : ''].filter(function (x) { return String(x || '').trim(); });
+    return parts.length ? parts.join('\n') : (f.problem || '');
   }
 
-  var DATA_COLUMNS = [
-    ['Номер заявки', function (r) { return r.number; }],
-    ['Дата и время подачи', function (r) { return localExcelDate(r.createdAt); }, 'dd.mm.yyyy hh:mm'],
-    ['Дата ISO', function (r) { return isoLocal(r.createdAt); }],
-    ['Код маршрута', function (r) { return r.route; }],
-    ['Маршрут', function (r) { return routeName(r.route, RU); }],
-    ['Вид работы', function (r) { return r.fields.kind || BANNER; }],
-    ['Код срочности', function (r) { return r.fields.urgency || 'normal'; }],
-    ['Срочность', function (r) { return RU['u_' + (r.fields.urgency || 'normal')]; }],
-    ['Город', function (r) { return r.fields.city; }],
-    ['Точка / адрес', function (r) { return r.fields.point; }],
-    ['Название заявки', function (r) { return r.fields.title; }],
-    ['Что случилось', function (r) { return r.fields.problem; }],
-    ['Что нужно сделать', function (r) { return r.fields.todo; }],
-    ['Бренды', function (r) { return r.fields.noBrand ? RU.noBrand : (r.fields.brands || []).join(', '); }],
-    ['Размеры', function (r) { return r.fields.size; }],
-    ['Текст на макете', function (r) { return r.fields.layoutText; }],
-    ['Пожелания по оформлению', function (r) { return r.fields.designWishes; }],
-    ['Подал', function (r) { return r.author.name; }],
-    ['Телефон', function (r) { return r.author.phone; }, '@'],
-    ['Фото, шт.', function (r) { return r.photos.length; }],
-    ['Номер временный', function (r) { return r.numberLocal ? 'Да' : 'Нет'; }],
-    ['Версия формата', function () { return FORMAT_VERSION; }],
-    // --- формат 2 ---
-    ['Точный адрес', function (r) { return r.fields.address; }],
-    ['Широта', function (r) { return r.fields.lat === undefined ? '' : r.fields.lat; }, '0.000000'],
-    ['Долгота', function (r) { return r.fields.lon === undefined ? '' : r.fields.lon; }, '0.000000'],
-    ['Ссылка 2GIS', function (r) { return r.fields.mapUrl; }],
-    ['Клиент', function (r) { return r.fields.client; }],
-    ['Телефон клиента', function (r) { return r.fields.clientPhone; }, '@'],
-    // --- формат 3 ---
-    ['Количество баннеров', function (r) { return Number(r.fields.qty) || ''; }]
+  var EXPORT_COLUMNS = [
+    ['Номер заявки', function (r) { return r.number; }, null, 16],
+    ['Наименование заявки', function (r) { return r.fields.title; }, null, 30],
+    ['Размер (длина) м', function (r) { return Number(r.fields.sizeW) || ''; }, null, 11],
+    ['Размер (высота) м', function (r) { return Number(r.fields.sizeH) || ''; }, null, 11],
+    ['Бренд', function (r) { return brandsText(r.fields); }, null, 16],
+    ['Добавить надпись, Изобразить… (Описание)', function (r) { return descriptionText(r.fields); }, null, 44],
+    ['Клиент Фио', function (r) { return r.fields.client; }, null, 22],
+    ['Номер телефона клиента', function (r) { return r.fields.clientPhone; }, '@', 18],
+    ['Город', function (r) { return r.fields.city; }, null, 14],
+    ['Кол-во баннеров', function (r) { return Number(r.fields.qty) || ''; }, '0', 10],
+    ['Где печатаются баннеры', function (r) { return r.fields.printAt; }, null, 24]
   ];
 
-  function addDataSheet(wb, r) {
-    var ws = wb.addWorksheet('Данные');
-    ws.columns = DATA_COLUMNS.map(function (c) { return {header: c[0], width: Math.max(14, c[0].length + 4)}; });
-    ws.getRow(1).font = {bold: true};
-    var values = DATA_COLUMNS.map(function (c) {
-      var v = c[1](r);
-      return v === undefined || v === null ? '' : v;
-    });
-    var row = ws.addRow(values);
-    DATA_COLUMNS.forEach(function (c, i) {
-      if (c[2]) row.getCell(i + 1).numFmt = c[2];
-    });
-    row.alignment = {vertical: 'top', wrapText: true};
-    ws.views = [{state: 'frozen', ySplit: 1}];
-    return ws;
-  }
-
   function buildXlsx(r) {
-    return loadExcelJS().then(function () {
-      var wb = new ExcelJS.Workbook();
-      wb.creator = 'Заявки с точек';
-      wb.created = new Date(r.createdAt);
-      var ws = wb.addWorksheet('Заявка', {
-        views: [{showGridLines: false}],
-        pageSetup: {paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0,
-          margins: {left: 0.5, right: 0.5, top: 0.6, bottom: 0.6, header: 0.3, footer: 0.3}}
-      });
-      ws.columns = [{width: 24}, {width: 22}, {width: 22}, {width: 22}];
-      var border = {style: 'thin', color: {argb: 'FFD5DBE5'}};
-      var box = {top: border, left: border, bottom: border, right: border};
-      var routeFill = {design_ads: 'FFF1ECFD', design: 'FFE8F1FD', ads: 'FFFFF5E4'};
-
-      ws.mergeCells('A1:C1');
-      var c1 = ws.getCell('A1');
-      c1.value = 'Заявка ' + r.number;
-      c1.font = {size: 16, bold: true};
-      c1.alignment = {vertical: 'middle'};
-      ws.getRow(1).height = 40;
-      var logoId = wb.addImage({base64: LOGO, extension: 'png'});
-      ws.addImage(logoId, {tl: {col: 3.1, row: 0.12}, ext: {width: 105, height: 35}});
-
-      ws.mergeCells('A2:D2');
-      ws.getCell('A2').value = RU.submitted + ' ' + fmtDate(r.createdAt) + ' · Заявки с точек · Alina Group';
-      ws.getCell('A2').font = {size: 10, color: {argb: 'FF63707F'}};
-
-      var row = 4;
-      summaryRows(r, RU).forEach(function (x) {
-        ws.mergeCells('B' + row + ':D' + row);
-        var a = ws.getCell('A' + row);
-        var b = ws.getCell('B' + row);
-        a.value = x[1];
-        a.font = {bold: true, color: {argb: 'FF4A5A70'}};
-        a.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFF2F4F7'}};
-        a.alignment = {vertical: 'top', wrapText: true};
-        b.value = x[0] === 'mp' ? {text: 'Открыть в 2GIS', hyperlink: x[2]} : x[2];
-        if (x[0] === 'mp') b.font = {color: {argb: 'FF1F5FD0'}, underline: true};
-        b.alignment = {vertical: 'top', wrapText: true};
-        if (x[0] === 'r') {
-          b.font = {bold: true};
-          b.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: routeFill[r.route] || 'FFFFFFFF'}};
-        }
-        if (x[0] === 'u' && r.fields.urgency === 'urgent') b.font = {bold: true, color: {argb: 'FFC62B34'}};
-        ['A', 'B', 'C', 'D'].forEach(function (col) { ws.getCell(col + row).border = box; });
-        ws.getRow(row).height = Math.max(rowHeight(x[2], 60), rowHeight(x[1], 22));
-        row++;
-      });
-
-      if (r.photos.length) {
-        row++;
-        ws.getCell('A' + row).value = 'Фото точки (' + r.photos.length + ')';
-        ws.getCell('A' + row).font = {bold: true, size: 12};
-        row++;
-        var ROW_PX = 20;
-        for (var i = 0; i < r.photos.length; i += 2) {
-          var pair = r.photos.slice(i, i + 2);
-          var maxH = 0;
-          pair.forEach(function (p, j) {
-            var k = Math.min(300 / p.w, 240 / p.h);
-            var w = Math.round(p.w * k), h = Math.round(p.h * k);
-            maxH = Math.max(maxH, h);
-            var id = wb.addImage({base64: 'data:image/jpeg;base64,' + abToB64(p.buf), extension: 'jpeg'});
-            ws.addImage(id, {tl: {col: j * 2 + 0.05, row: row - 1 + 0.15}, ext: {width: w, height: h}});
-          });
-          var rows = Math.ceil((maxH + 12) / ROW_PX);
-          for (var q = 0; q < rows; q++) ws.getRow(row + q).height = ROW_PX * 0.75;
-          row += rows;
-        }
-      }
-
-      addDataSheet(wb, r);
-
-      var wd = wb.addWorksheet('Диалог с помощником');
-      wd.columns = [{header: 'Кто', key: 'who', width: 14}, {header: 'Текст', key: 'text', width: 90}];
-      wd.getRow(1).font = {bold: true};
-      r.chat.forEach(function (m) {
-        var added = wd.addRow({who: m.role === 'model' ? 'Помощник' : 'Подающий', text: m.text});
-        added.alignment = {vertical: 'top', wrapText: true};
-        added.height = rowHeight(m.text, 85);
-      });
-
-      return wb.xlsx.writeBuffer();
-    }).then(toArrayBuffer);
+    return buildTableXlsx('Заявка ' + r.number, [r]);
   }
 
   function ensureXlsx(r) {
@@ -2293,7 +2207,8 @@ textarea.inp { min-height: 84px; resize: vertical; }
       f.address ? 'Адрес: ' + f.address : '',
       f.mapUrl ? '2GIS: ' + f.mapUrl : '',
       f.title || f.problem,
-      [f.size ? 'Размеры: ' + f.size : '', f.qty ? 'Баннеров: ' + f.qty : ''].filter(Boolean).join(' · '),
+      [sizeText(f) ? 'Размер: ' + sizeText(f) : '', f.qty ? 'Баннеров: ' + f.qty : ''].filter(Boolean).join(' · '),
+      f.printAt ? 'Печать: ' + f.printAt : '',
       f.client ? 'Клиент: ' + [f.client, f.clientPhone].filter(Boolean).join(', ') : '',
       'Срочность: ' + RU['u_' + (f.urgency || 'normal')],
       'Подал: ' + [r.author.name, r.author.phone].filter(Boolean).join(', ')
@@ -2326,7 +2241,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
       number: r.number, createdAt: r.createdAt, status: r.status,
       city: f.city, point: f.point, title: f.title, problem: f.problem,
       brands: f.noBrand ? RU.noBrand : (f.brands || []).join(', '),
-      size: f.size, urgency: RU['u_' + (f.urgency || 'normal')],
+      size: sizeText(f), urgency: RU['u_' + (f.urgency || 'normal')],
       name: r.author.name, phone: r.author.phone, photos: r.photos.length,
       turns: r.chat.filter(function (m) { return m.role === 'user'; }).length,
       address: f.address, client: f.client, clientPhone: f.clientPhone, map: f.mapUrl,
@@ -2370,11 +2285,13 @@ textarea.inp { min-height: 84px; resize: vertical; }
     return ('Папка_' + f.name).replace(/[\\\/:*?"<>|\s]+/g, '_').slice(0, 120) + '.xlsx';
   }
 
-  var WIDE_COLUMNS = {'Название заявки': 30, 'Что случилось': 34, 'Что нужно сделать': 34, 'Точный адрес': 30,
-    'Точка / адрес': 24, 'Текст на макете': 28, 'Пожелания по оформлению': 28, 'Ссылка 2GIS': 26};
-
   function buildFolderXlsx(f, list) {
+    return buildTableXlsx('Папка «' + f.name + '» · ' + reqCount(list.length), list);
+  }
+
+  function buildTableXlsx(title, list) {
     var thumbs;
+    list.forEach(function (r) { splitOldSize(r.fields); });
     return loadExcelJS().then(function () {
       return Promise.all(list.map(function (r) { return Promise.all(r.photos.map(thumbB64)); }));
     }).then(function (res) {
@@ -2383,14 +2300,12 @@ textarea.inp { min-height: 84px; resize: vertical; }
       wb.creator = 'Заявки с точек';
       wb.created = new Date();
       var ws = wb.addWorksheet('Заявки', {views: [{state: 'frozen', xSplit: 1, ySplit: 3}]});
-      var nc = DATA_COLUMNS.length;
+      var nc = EXPORT_COLUMNS.length;
       var maxPh = Math.max(1, Math.max.apply(null, thumbs.map(function (x) { return x.length; })));
-      ws.columns = DATA_COLUMNS.map(function (c) {
-        return {width: WIDE_COLUMNS[c[0]] || Math.max(14, Math.min(24, c[0].length + 4))};
-      }).concat(Array.apply(null, Array(maxPh)).map(function () { return {width: 18}; }));
+      ws.columns = EXPORT_COLUMNS.map(function (c) { return {width: c[3]}; }).concat(Array.apply(null, Array(maxPh)).map(function () { return {width: 18}; }));
 
       // Логотип — в колонке A, заголовок правее, чтобы не наезжали друг на друга.
-      ws.getCell('B1').value = 'Папка «' + f.name + '» · ' + reqCount(list.length);
+      ws.getCell('B1').value = title;
       ws.getCell('B1').font = {size: 16, bold: true};
       ws.getRow(1).height = 30;
       ws.getCell('B2').value = 'Собрано ' + fmtDate(Date.now()) + ' · Заявки с точек · Alina Group';
@@ -2401,36 +2316,31 @@ textarea.inp { min-height: 84px; resize: vertical; }
       var border = {style: 'thin', color: {argb: 'FFD5DBE5'}};
       var box = {top: border, left: border, bottom: border, right: border};
       var head = ws.getRow(3);
-      DATA_COLUMNS.forEach(function (c, i) { head.getCell(i + 1).value = c[0]; });
+      EXPORT_COLUMNS.forEach(function (c, i) { head.getCell(i + 1).value = c[0]; });
       head.getCell(nc + 1).value = 'Фото (с отметками)';
       if (maxPh > 1) ws.mergeCells(3, nc + 1, 3, nc + maxPh);
       head.font = {bold: true, color: {argb: 'FF4A5A70'}};
       head.alignment = {vertical: 'middle', wrapText: true};
-      head.height = 32;
+      head.height = 48;
       for (var hc = 1; hc <= nc + maxPh; hc++) {
         head.getCell(hc).fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFF2F4F7'}};
         head.getCell(hc).border = box;
       }
 
-      var mapCol = DATA_COLUMNS.map(function (c) { return c[0]; }).indexOf('Ссылка 2GIS') + 1;
       list.forEach(function (r, i) {
         var rowNo = 4 + i;
         var row = ws.getRow(rowNo);
-        DATA_COLUMNS.forEach(function (c, j) {
+        EXPORT_COLUMNS.forEach(function (c, j) {
           var v = c[1](r);
           var cell = row.getCell(j + 1);
           cell.value = v === undefined || v === null ? '' : v;
           if (c[2]) cell.numFmt = c[2];
           cell.border = box;
         });
-        if (mapCol && r.fields.mapUrl) {
-          row.getCell(mapCol).value = {text: 'Открыть в 2GIS', hyperlink: r.fields.mapUrl};
-          row.getCell(mapCol).font = {color: {argb: 'FF1F5FD0'}, underline: true};
-        }
         row.alignment = {vertical: 'top', wrapText: true};
         var ph = thumbs[i];
         // Миниатюра 120 px в клетке 18 знаков (~130 px) и строке 100 pt (~133 px).
-        row.height = ph.length ? 100 : Math.max(30, rowHeight(r.fields.problem || '', 34));
+        row.height = Math.max(ph.length ? 100 : 30, rowHeight(descriptionText(r.fields), 44), rowHeight(r.fields.title || '', 30));
         ph.forEach(function (th, j) {
           var k = Math.min(120 / th.w, 120 / th.h);
           var id = wb.addImage({base64: th.b64, extension: 'jpeg'});
@@ -2477,7 +2387,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
     list.forEach(function (r, i) {
       var x = r.fields;
       lines.push((i + 1) + '. ' + r.number + ' · ' + [x.city, x.point].filter(Boolean).join(', ') +
-        (x.title ? ' · ' + x.title : '') + (x.size ? ' · ' + x.size : '') + (x.qty ? ' · ' + x.qty + ' шт.' : ''));
+        (x.title ? ' · ' + x.title : '') + (sizeText(x) ? ' · ' + sizeText(x) : '') + (x.qty ? ' · ' + x.qty + ' шт.' : ''));
     });
     var a = list[0].author || {};
     lines.push('', 'Подал: ' + [a.name, a.phone].filter(Boolean).join(', '));
@@ -3129,7 +3039,7 @@ textarea.inp { min-height: 84px; resize: vertical; }
 
   // Для проверки из консоли и тестов.
   window.__zt = {S: S, buildXlsx: buildXlsx, xlsxName: xlsxName, handleAudio: handleAudio,
-    DATA_COLUMNS: DATA_COLUMNS, FORMAT_VERSION: FORMAT_VERSION, buildFolderXlsx: buildFolderXlsx,
+    EXPORT_COLUMNS: EXPORT_COLUMNS, buildFolderXlsx: buildFolderXlsx,
     dbPut: dbPut, openFolder: openFolder};
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
